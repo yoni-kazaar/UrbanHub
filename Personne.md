@@ -178,7 +178,7 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 - [x] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
 - [x] Partie du rapport ([partie1_meteo/RAPPORT.md](partie1_meteo/RAPPORT.md))
-- [x] Séquence météo pour la vidéo de présentation de l'équipe (script : [partie1_meteo/VIDEO.md](partie1_meteo/VIDEO.md))
+- [ ] Séquence météo dans la vidéo de présentation de l'équipe
 
 ---
 

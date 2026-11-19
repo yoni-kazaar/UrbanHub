@@ -39,6 +39,7 @@ silver/meteo/   Parquet nettoyé, 1 ligne par station et par heure (504 Mo, 77,5
    ▼
 gold/meteo/     table du contrat + tables d'analyse
    │  analyses.py : 4 questions métier + IA
+   │  publication de gold/meteo/ sur le MinIO partagé du VPS (par D)
    ▼
 app/pages/1_Meteo.py (Streamlit)
 ```
@@ -49,6 +50,8 @@ app/pages/1_Meteo.py (Streamlit)
 | Stations | 2 098 stations actives depuis 2022, dont 81 dans les 8 villes | 2 min |
 | Nettoyage | 77,5 millions de lignes, 1 995 stations, 5 605 fichiers Parquet | 8,6 min |
 | Gold | 342 377 lignes ville × heure, 100 % des heures couvertes pour chaque ville | 6 min |
+
+**Où sont les données.** Les trois couches existent dans le MinIO où tourne le pipeline. Seule la couche **Gold** (14 Mo), lue par l'application et par l'analyse croisée, est publiée sur le MinIO partagé du VPS de l'équipe (fichier `_SUCCESS` déposé en dernier). Bronze (3,1 Go) et Silver (504 Mo) sont des étapes de travail : elles restent là où se fait le calcul, ce qui limite l'espace occupé sur le VPS. Elles peuvent être reconstruites à tout moment depuis la source, en environ 25 minutes.
 
 Chaque ville est la **moyenne de ses stations à moins de 30 km** de son centre (règle du contrat) : de 3 stations à Lille à 24 à Paris. La direction du vent est moyennée **vectoriellement** (la moyenne de 350° et 10° vaut 0°, pas 180°).
 

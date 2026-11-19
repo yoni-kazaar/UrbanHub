@@ -30,7 +30,7 @@ jusqu'au jour même : choix validé par le professeur.
 | `gold.py` | Étape 4 : tables Gold (table du contrat + tables par jour, France, stations) |
 | `analyses.py` | Étape 5 : les 4 questions métier + Isolation Forest → `gold/meteo/analyses/` |
 | [`../app/pages/1_Meteo.py`](../app/pages/1_Meteo.py) | Étape 6 : page Streamlit Météo |
-| [`RAPPORT.md`](RAPPORT.md), [`VIDEO.md`](VIDEO.md) | Étape 7 : section du rapport et script de la vidéo |
+| [`RAPPORT.md`](RAPPORT.md) | Étape 7 : section du rapport |
 | `Dockerfile`, `Dockerfile.app`, `docker-compose.yml` | Conteneurs Python (scripts) et Streamlit (application) |
 
 ## Pourquoi Docker pour lancer Python ?
