@@ -193,8 +193,8 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 ### 1. Collecte
 
 - [ ] Jour 1 : trouver une machine allumée en permanence (PC fixe, ou le VPS : D déploie le collecteur dans Coolify).
-- [ ] Trouver l'identifiant du réseau de chacune des 8 villes dans l'API.
-- [ ] Écrire un collecteur qui tourne toutes les 2 à 3 minutes et dépose les relevés dans `bronze/velos/`. Une erreur sur un réseau ne doit pas arrêter la boucle.
+- [x] Trouver l'identifiant du réseau de chacune des 8 villes dans l'API (voir `partie2_velos/README.md`).
+- [x] Écrire un collecteur qui tourne toutes les 2 à 3 minutes et dépose les relevés dans `bronze/velos/`. Une erreur sur un réseau ne doit pas arrêter la boucle.
 - [ ] Le lancer dans un conteneur Docker avec `restart: always`.
 - [ ] **Lancer la collecte le plus tôt possible**, puis vérifier chaque jour qu'elle tourne (`docker compose logs`).
 
