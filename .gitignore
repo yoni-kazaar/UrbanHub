@@ -1,6 +1,7 @@
 # Secrets : jamais sur GitHub
 .env
 .env.*
+.env.prod
 !.env.example
 
 # Environnements Python
