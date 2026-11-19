@@ -1,4 +1,4 @@
-# Partie 3 – Pollution (OpenAQ) – Personne C
+# Partie 3 : pollution de l'air (OpenAQ, personne C)
 
 ## Comment ça marche
 

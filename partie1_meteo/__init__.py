@@ -1,1 +1,1 @@
-"""Partie 1 – Flux batch : météo NOAA (personne A)."""
+"""Partie 1 : flux batch, données météo Météo-France (personne A)."""

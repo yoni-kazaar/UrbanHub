@@ -1,4 +1,4 @@
-# Partie 1 – Flux batch : analyse météorologique urbaine
+# Partie 1 : analyse météorologique urbaine (flux batch)
 
 *Section du rapport UrbanHub rédigée par la personne A. Chiffres calculés le 19/11/2026 sur la période du 01/01/2022 au 19/11/2026.*
 
@@ -14,7 +14,7 @@ Avec l'accord du professeur, la Partie 1 utilise donc les **[données climatolog
 
 | Variable du sujet | Colonne Météo-France | Unité |
 | --- | --- | --- |
-| `station_id` | `NUM_POSTE` | – |
+| `station_id` | `NUM_POSTE` | - |
 | `timestamp` | `AAAAMMJJHH` | heure UTC |
 | `temperature` | `T` | °C |
 | `wind_speed` | `FF` (vent moyen 10 min) | m/s |
@@ -77,17 +77,17 @@ Les données Météo-France sont déjà contrôlées avant publication : moins d
 
 | Période | Type | Écart moyen à la normale |
 | --- | --- | ---: |
-| 01–03/04/2022 | froid | −7,7 °C |
-| 26–28/02/2023 | froid | −5,6 °C |
-| 04–07/08/2023 | froid | −6,0 °C |
-| 21–24/04/2024 | froid | −5,9 °C |
-| 14–16/03/2025 | froid | −5,2 °C |
-| 25–28/05/2026 | chaud | +6,7 °C |
-| 22–25/06/2026 | chaud | +6,5 °C |
+| 01-03/04/2022 | froid | -7,7 °C |
+| 26-28/02/2023 | froid | -5,6 °C |
+| 04-07/08/2023 | froid | -6,0 °C |
+| 21-24/04/2024 | froid | -5,9 °C |
+| 14-16/03/2025 | froid | -5,2 °C |
+| 25-28/05/2026 | chaud | +6,7 °C |
+| 22-25/06/2026 | chaud | +6,5 °C |
 
 Les vagues de froid tardives au printemps dominent (avril 2022, avril 2024), et 2026 concentre les deux épisodes chauds. La période la plus marquée localement est à **Paris, du 24 au 26/06/2026 : 32,1 °C en moyenne, soit +9,7 °C** au-dessus de la normale.
 
-**IA – Isolation Forest.** Un modèle non supervisé, entraîné ville par ville sur 7 variables journalières (écart de température à la normale, amplitude, pluie, rafales, pression minimale, visibilité minimale, humidité), isole les 1 % de jours les plus atypiques : **144 jours**. La température est prise en écart à la normale, sinon tous les jours d'été et d'hiver seraient jugés anormaux. Les jours repérés sont surtout liés à la **pluie (83)** et aux **rafales (30)**, par exemple le 12/11/2026 à Marseille (76 mm) et le 21/11/2024 à Nantes (rafales de 31 m/s).
+**Détection d'anomalies par IA (Isolation Forest).** Un modèle non supervisé, entraîné ville par ville sur 7 variables journalières (écart de température à la normale, amplitude, pluie, rafales, pression minimale, visibilité minimale, humidité), isole les 1 % de jours les plus atypiques : **144 jours**. La température est prise en écart à la normale, sinon tous les jours d'été et d'hiver seraient jugés anormaux. Les jours repérés sont surtout liés à la **pluie (83)** et aux **rafales (30)**, par exemple le 12/11/2026 à Marseille (76 mm) et le 21/11/2024 à Nantes (rafales de 31 m/s).
 
 *Limite :* la normale est calculée sur les 5 ans étudiés, et non sur 30 ans comme les normales climatiques officielles. Elle inclut donc elle-même les années chaudes récentes.
 
@@ -97,12 +97,12 @@ Les vagues de froid tardives au printemps dominent (avril 2022, avril 2024), et 
 
 | Variable | Corrélation |
 | --- | ---: |
-| Humidité | −0,45 |
-| Écart température – point de rosée | +0,44 |
+| Humidité | -0,45 |
+| Écart température - point de rosée | +0,44 |
 | Température | +0,29 |
-| Pluie | −0,20 |
+| Pluie | -0,20 |
 | Vent | +0,14 |
-| Pression | −0,11 |
+| Pression | -0,11 |
 
 La visibilité médiane passe de **30 km sous 60 % d'humidité à 5,9 km au-delà de 95 %**. Elle passe de 26 km par temps sec à 6,5 km sous une pluie forte (> 4 mm/h). L'air proche de la saturation (température proche du point de rosée) est la première cause de baisse de visibilité, devant la pluie. Le vent l'améliore légèrement en dispersant le brouillard.
 
@@ -110,7 +110,7 @@ Le **brouillard** (visibilité < 1 km) est le plus fréquent en **décembre** et
 
 ### Q3. Quelle est l'évolution saisonnière de la température ?
 
-| Zone | Mois le plus chaud | Mois le plus froid | Écart été – hiver |
+| Zone | Mois le plus chaud | Mois le plus froid | Écart été - hiver |
 | --- | --- | --- | ---: |
 | France | août (21,1 °C) | janvier (4,0 °C) | 17,1 °C |
 | Marseille | juillet (26,0 °C) | janvier (7,3 °C) | 18,7 °C |
@@ -128,7 +128,7 @@ Le cycle saisonnier est le même partout (maximum en juillet-août, minimum en j
 
 Deux types de seuils sont combinés : des **seuils absolus**, les mêmes partout, et des **seuils relatifs** propres à chaque ville (le 1 % des jours les plus extrêmes). Nombre de jours concernés entre 2022 et 2026 :
 
-| Ville | ≥ 35 °C | ≤ −5 °C | Pluie ≥ 30 mm | Rafales ≥ 100 km/h | Brouillard < 200 m |
+| Ville | ≥ 35 °C | ≤ -5 °C | Pluie ≥ 30 mm | Rafales ≥ 100 km/h | Brouillard < 200 m |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Toulouse | 101 | 6 | 5 | 2 | 56 |
 | Bordeaux | 77 | 2 | 7 | 3 | 187 |
@@ -141,7 +141,7 @@ Deux types de seuils sont combinés : des **seuils absolus**, les mêmes partout
 
 **Records de la période :**
 - chaleur : **42,8 °C à Bordeaux le 23/06/2026** ;
-- froid : **−11,4 °C à Strasbourg le 17/12/2022** ;
+- froid : **-11,4 °C à Strasbourg le 17/12/2022** ;
 - pluie : **102 mm à Marseille le 20/10/2026** ;
 - rafales : **36,2 m/s (130 km/h) à Lille le 18/02/2022**.
 
@@ -161,7 +161,7 @@ Elle se filtre par ville et par période, et lit uniquement les tables Gold.
 
 ## 6. Limites
 
-- **Source modifiée par rapport au sujet** (NOAA → Météo-France), pour une raison de disponibilité des données.
+- **Source modifiée par rapport au sujet** (NOAA -> Météo-France), pour une raison de disponibilité des données.
 - **Normales calculées sur 5 ans :** elles sont moins robustes que des normales officielles sur 30 ans.
 - **Une ville est la moyenne de ses stations,** qui n'ont pas toutes les mêmes capteurs : la visibilité et la pression ne sont mesurées que dans les grandes stations.
-- **Seuils d'extrêmes choisis par nos soins** (35 °C, −5 °C, 30 mm, 100 km/h, 200 m). Ce ne sont pas les seuils de vigilance officiels de Météo-France.
+- **Seuils d'extrêmes choisis par nos soins** (35 °C, -5 °C, 30 mm, 100 km/h, 200 m). Ce ne sont pas les seuils de vigilance officiels de Météo-France.

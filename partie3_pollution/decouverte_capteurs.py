@@ -1,5 +1,5 @@
 """
-Étape 1 – Découverte des capteurs.
+Étape 1 : découverte des capteurs.
 
 1. Récupère tous les sites OpenAQ situés en France (filtre iso=FR).
 2. Garde ceux rattachés à l'une des 8 villes (common.villes.rattacher_ville, rayon 30 km).

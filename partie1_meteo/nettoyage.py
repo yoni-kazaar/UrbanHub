@@ -1,4 +1,4 @@
-"""Étape 3 – Nettoyage : Bronze → Silver.
+"""Étape 3 : nettoyage (Bronze -> Silver).
 
 Pour chaque département, lit les fichiers Météo-France de Bronze (copie la plus
 récente), les nettoie, puis écrit dans Silver un fichier Parquet par mois :
@@ -7,11 +7,11 @@ récente), les nettoie, puis écrit dans Silver un fichier Parquet par mois :
 
 Règles de nettoyage (dans l'ordre) :
 1. Période : on garde les 5 dernières années (depuis le 1er janvier 2022).
-2. Date : AAAAMMJJHH (heure UTC chez Météo-France) → vrai `timestamp` UTC.
-3. Qualité : une valeur dont le code qualité vaut 2 (« douteuse ») est vidée.
+2. Date : AAAAMMJJHH (heure UTC chez Météo-France) -> vrai `timestamp` UTC.
+3. Qualité : une valeur dont le code qualité vaut 2 ('douteuse') est vidée.
    Codes conservés : 0 (protégée), 1 (validée), 9 (filtrée).
 4. Valeurs impossibles : une valeur hors des bornes physiques est vidée.
-5. Vent : direction vidée quand le vent est calme (vitesse 0) ; 360° → 0°.
+5. Vent : direction vidée quand le vent est calme (vitesse 0) ; 360° -> 0°.
 6. Doublons (même station, même heure) supprimés ; lignes sans aucune mesure
    supprimées.
 7. Ajout de la station : nom, coordonnées, ville (table de l'étape 2).
@@ -39,7 +39,7 @@ from partie1_meteo import config
 from partie1_meteo.provisoire import client_minio, ecrire_octets, ecrire_parquet, lire_octets, lire_parquet
 from partie1_meteo.stations import fichiers_les_plus_recents
 
-# Colonne Météo-France → colonne Silver (unités déjà correctes chez Météo-France).
+# Colonne Météo-France -> colonne Silver (unités déjà correctes chez Météo-France).
 VARIABLES = {
     "T": "temperature_c",          # température sous abri (°C)
     "TN": "temperature_min_c",     # minimum dans l'heure (°C)
@@ -74,9 +74,7 @@ CODE_QUALITE_DOUTEUX = 2
 COLONNES_STATION = ["station_id", "station_name", "ville", "departement", "latitude", "longitude", "altitude_m"]
 
 
-# ============================================================================
-# Nettoyage d'un tableau (fonction pure, testée dans tests/test_nettoyage.py)
-# ============================================================================
+# --- Nettoyage d'un tableau (fonction pure, testée dans tests/test_nettoyage.py) ---
 
 def nettoyer(brut: pd.DataFrame, debut: pd.Timestamp) -> tuple[pd.DataFrame, dict]:
     """Nettoie un tableau Météo-France. Renvoie (tableau propre, compteurs)."""
@@ -84,7 +82,7 @@ def nettoyer(brut: pd.DataFrame, debut: pd.Timestamp) -> tuple[pd.DataFrame, dic
 
     df = pd.DataFrame({"station_id": brut["NUM_POSTE"].astype(str).str.zfill(8)})
 
-    # 2. Date : AAAAMMJJHH en UTC → timestamp UTC.
+    # 2. Date : AAAAMMJJHH en UTC -> timestamp UTC.
     df["timestamp"] = pd.to_datetime(brut["AAAAMMJJHH"].astype(str), format="%Y%m%d%H", utc=True)
 
     # 1. Période étudiée.
@@ -97,20 +95,20 @@ def nettoyer(brut: pd.DataFrame, debut: pd.Timestamp) -> tuple[pd.DataFrame, dic
     for code_mf, colonne in VARIABLES.items():
         valeurs = pd.to_numeric(brut[code_mf], errors="coerce").astype("float64")
 
-        # 3. Qualité : code 2 = douteuse → vidée.
+        # 3. Qualité : code 2 = douteuse -> vidée.
         qualite = brut.get("Q" + code_mf)
         if qualite is not None:
             douteuses = (qualite == CODE_QUALITE_DOUTEUX) & valeurs.notna()
             compteurs["valeurs_douteuses"] += int(douteuses.sum())
             valeurs = valeurs.mask(douteuses)
 
-        # 4. Valeurs impossibles → vidées.
+        # 4. Valeurs impossibles -> vidées.
         mini, maxi = BORNES[colonne]
         impossibles = valeurs.notna() & ((valeurs < mini) | (valeurs > maxi))
         compteurs["valeurs_impossibles"] += int(impossibles.sum())
         df[colonne] = valeurs.mask(impossibles).to_numpy()
 
-    # 5. Vent calme : pas de direction. Nord noté 360° → 0°.
+    # 5. Vent calme : pas de direction. Nord noté 360° -> 0°.
     calme = df["wind_speed_ms"] == 0
     compteurs["directions_vent_calme"] = int((calme & df["wind_direction_deg"].notna()).sum())
     df.loc[calme, "wind_direction_deg"] = np.nan
@@ -130,9 +128,7 @@ def nettoyer(brut: pd.DataFrame, debut: pd.Timestamp) -> tuple[pd.DataFrame, dic
     return df.reset_index(drop=True), compteurs
 
 
-# ============================================================================
-# Traitement d'un département (exécuté dans un processus séparé)
-# ============================================================================
+# --- Traitement d'un département (exécuté dans un processus séparé) ---
 
 def traiter_departement(departement: str, cles: list[str], debut_iso: str) -> dict:
     s3 = client_minio()
@@ -172,12 +168,10 @@ def traiter_departement(departement: str, cles: list[str], debut_iso: str) -> di
     return compteurs
 
 
-# ============================================================================
-# Programme principal
-# ============================================================================
+# --- Programme principal ---
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Nettoyage Bronze → Silver des données météo")
+    parser = argparse.ArgumentParser(description="Nettoyage Bronze -> Silver des données météo")
     parser.add_argument("--departements", nargs="+", help="codes de départements (ex. 69 75), pour tester")
     parser.add_argument("--processus", type=int, default=4)
     args = parser.parse_args()
@@ -194,7 +188,7 @@ def main() -> None:
         par_departement = {d: c for d, c in par_departement.items() if d in args.departements}
 
     print(f"Nettoyage de {len(par_departement)} départements depuis le {debut:%d/%m/%Y}, "
-          f"{args.processus} en parallèle…")
+          f"{args.processus} en parallèle...")
     t0 = time.time()
     rapports = []
     with ProcessPoolExecutor(max_workers=args.processus) as pool:

@@ -1,5 +1,5 @@
 """
-Étape 3 – Historique des mesures horaires (Personne.md : « récupérer aussi l'historique »).
+Étape 3 : historique des mesures horaires (demandé dans Personne.md).
 
 Pour chaque capteur du catalogue et chaque mois des HISTORIQUE_MOIS derniers mois :
   GET /v3/sensors/{id}/hours?datetime_from=...&datetime_to=...
@@ -84,7 +84,7 @@ def main():
                   f"{nb_mesures} mesures | {erreurs} erreurs", flush=True)
 
     print("Historique terminé." if erreurs == 0 else
-          f"Terminé avec {erreurs} erreurs : relance le script pour réessayer uniquement celles-là.", flush=True)
+          f"Terminé avec {erreurs} erreurs : relancer le script pour réessayer uniquement celles-là.", flush=True)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """
-Étape 5 – Tables Gold de la pollution.
+Étape 5 : tables Gold de la pollution.
 
-1. gold/pollution/pollution_ville_heure.parquet  (table du CONTRAT, utilisée par la Partie 4)
+1. gold/pollution/pollution_ville_heure.parquet  (table du contrat, utilisée par la Partie 4)
    Une ligne par ville et par heure (UTC), colonnes pm25, pm10, no2, o3, co en µg/m³.
    Agrégation (CONTRAT.md) : moyenne des capteurs de la ville.
      1. moyenne par capteur et par heure ;
@@ -31,7 +31,7 @@ CHEMIN_CAPTEURS = "pollution/capteurs_pollution.parquet"
 def lire_silver(lac):
     fichiers = [f for f in lac.lister("silver", "pollution/") if f.endswith(".parquet")]
     if not fichiers:
-        raise RuntimeError("Aucun fichier Silver : lance d'abord partie3_pollution.silver")
+        raise RuntimeError("Aucun fichier Silver : lancer d'abord partie3_pollution.silver")
     return pd.concat([pd.read_parquet(io.BytesIO(lac.lire("silver", f))) for f in fichiers], ignore_index=True)
 
 

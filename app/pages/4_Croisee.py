@@ -4,8 +4,8 @@ import streamlit as st
 
 from donnees import exiger, filtres
 
-st.set_page_config(page_title="Analyse croisée – UrbanHub", page_icon="🔗", layout="wide")
-st.title("🔗 Analyse croisée")
+st.set_page_config(page_title="Analyse croisée - UrbanHub", page_icon="🔗", layout="wide")
+st.title("Analyse croisée")
 
 meteo, velos, pollution = exiger("meteo"), exiger("velos"), exiger("pollution")
 df = (meteo.merge(velos.drop(columns="heure_locale"), on=["ville", "heure"], how="inner")
@@ -36,7 +36,7 @@ with col_d:
     st.plotly_chart(px.scatter(echantillon, x=x2, y="usage_velos", color="ville", opacity=0.4, trendline="ols", trendline_scope="overall"),
                     width="stretch")
 
-st.subheader("Score « conditions favorables au vélo »")
+st.subheader("Score 'conditions favorables au vélo'")
 st.caption("Score simple de 0 à 100 : température douce, pas de pluie, vent faible, air propre. À remplacer par le modèle de la Partie 4.")
 score = (100
          - 3 * (df["temperature_c"] - 18).abs()

@@ -33,7 +33,7 @@ class Lac:
     def mode(self):
         return f"MinIO ({config.MINIO_ENDPOINT})" if self.client else f"dossier local ({config.DOSSIER_LAC_LOCAL})"
 
-    # ------------------------------------------------------------------ écriture
+    # --- écriture ---
     def _creer_bucket_si_absent(self, bucket):
         """Utile sur un MinIO local tout neuf. Sur le VPS, c'est D qui crée les buckets."""
         if bucket in self._buckets_ok:
@@ -69,7 +69,7 @@ class Lac:
         data = json.dumps(objet, ensure_ascii=False).encode("utf-8")
         return self.ecrire(bucket, chemin, data, content_type="application/json")
 
-    # ------------------------------------------------------------------ lecture
+    # --- lecture ---
     def lister(self, bucket, prefixe):
         """Liste les chemins des fichiers sous bucket/prefixe (triés)."""
         if self.client:

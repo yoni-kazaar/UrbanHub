@@ -1,4 +1,4 @@
-# Partie 1 – Météo (flux batch, Météo-France)
+# Partie 1 : Météo (flux batch, Météo-France)
 
 Responsable : personne A. Voir [Personne.md](../Personne.md#personne-a) et [CONTRAT.md](../CONTRAT.md).
 
@@ -25,12 +25,12 @@ jusqu'au jour même : choix validé par le professeur.
 | `provisoire.py` | Villes et accès MinIO (les villes sont identiques à `common/villes.py`) |
 | `telechargement.py` | Étape 1 : téléchargement parallèle des fichiers départementaux vers Bronze |
 | `stations.py` | Étape 2 : liste des stations françaises + rattachement aux villes |
-| `nettoyage.py` | Étape 3 : nettoyage Bronze → Silver (qualité, bornes, vent calme, doublons) |
+| `nettoyage.py` | Étape 3 : nettoyage Bronze -> Silver (qualité, bornes, vent calme, doublons) |
 | `tests/test_nettoyage.py` | Tests des règles de nettoyage |
 | `gold.py` | Étape 4 : tables Gold (table du contrat + tables par jour, France, stations) |
-| `analyses.py` | Étape 5 : les 4 questions métier + Isolation Forest → `gold/meteo/analyses/` |
+| `analyses.py` | Étape 5 : les 4 questions métier + Isolation Forest -> `gold/meteo/analyses/` |
 | [`../app/pages/1_Meteo.py`](../app/pages/1_Meteo.py) | Étape 6 : page Streamlit Météo |
-| [`RAPPORT.md`](RAPPORT.md), [`VIDEO.md`](VIDEO.md) | Étape 7 : section du rapport et script de la vidéo |
+| [`RAPPORT.md`](RAPPORT.md) | Étape 7 : section du rapport |
 | `Dockerfile`, `Dockerfile.app`, `docker-compose.yml` | Conteneurs Python (scripts) et Streamlit (application) |
 
 ## Pourquoi Docker pour lancer Python ?
@@ -66,7 +66,7 @@ docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m part
 # 2. Stations
 docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.stations
 
-# 3. Nettoyage Bronze → Silver
+# 3. Nettoyage Bronze -> Silver
 docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m pytest partie1_meteo/tests -q
 docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.nettoyage --departements 69 75   # test
 docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.nettoyage                       # toute la France
@@ -77,7 +77,7 @@ docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m part
 # 5. Questions métier et IA
 docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.analyses
 
-# 6. Application Streamlit → http://localhost:8501 (page Météo dans le menu)
+# 6. Application Streamlit -> http://localhost:8501 (page Météo dans le menu)
 docker compose -f partie1_meteo/docker-compose.yml --profile app up -d --build app
 ```
 
@@ -103,10 +103,10 @@ moyennée **vectoriellement**. Une journée n'est calculée qu'avec au moins 18 
 | Règle | Détail |
 | --- | --- |
 | Période | Depuis le 1er janvier 2022 (5 dernières années) |
-| Date | `AAAAMMJJHH` (heure UTC chez Météo-France) → `timestamp` datetime UTC |
-| Qualité | Code qualité `2` (« douteuse ») → valeur vidée. Gardés : `0` protégée, `1` validée, `9` filtrée |
-| Valeurs impossibles | Hors bornes physiques → vidées (ex. température −40 à 50 °C, humidité 0 à 100 %, pression 900 à 1 080 hPa) |
-| Vent calme | Vitesse 0 → direction vidée ; 360° → 0° (nord) |
+| Date | `AAAAMMJJHH` (heure UTC chez Météo-France) -> `timestamp` datetime UTC |
+| Qualité | Code qualité `2` (« douteuse ») -> valeur vidée. Gardés : `0` protégée, `1` validée, `9` filtrée |
+| Valeurs impossibles | Hors bornes physiques -> vidées (ex. température -40 à 50 °C, humidité 0 à 100 %, pression 900 à 1 080 hPa) |
+| Vent calme | Vitesse 0 -> direction vidée ; 360° -> 0° (nord) |
 | Doublons, lignes vides | Même station et même heure : la dernière gardée ; lignes sans aucune mesure supprimées |
 | Valeurs absentes | Restent vides (`null`), jamais remplacées par 0 |
 
@@ -127,12 +127,12 @@ Pour viser le **VPS** : mettre l'URL HTTPS dans `.env`, puis supprimer la ligne
 
 ## Résultats obtenus (19/11/2026)
 
-**Étape 1 – téléchargement**
+**Étape 1 : téléchargement**
 - 95 départements de métropole, 190 fichiers, **3,3 Go compressés** dans Bronze.
 - 19 min avec 8 téléchargements en parallèle ; 8 fichiers en délai dépassé côté
   Météo-France, repris en 0,7 min par une relance.
 
-**Étape 2 – stations**
+**Étape 2 : stations**
 - **2 098 stations** actives depuis 2022, dernière mesure le 19/11/2026 à 05 h UTC.
 - 81 stations rattachées aux 8 villes, avec les 5 variables dans chaque ville :
 
@@ -149,7 +149,7 @@ Pour viser le **VPS** : mettre l'URL HTTPS dans `.env`, puis supprimer la ligne
 
 Une station ne mesure pas forcément toutes les variables : la visibilité et la
 pression ne sont relevées que dans les grandes stations. La table `stations.parquet`
-indique pour chacune ce qu'elle mesure (`mesure_temperature`, `mesure_vent`…).
+indique pour chacune ce qu'elle mesure (`mesure_temperature`, `mesure_vent`...).
 
 **Étapes 3 à 5** : 77,5 millions de lignes dans Silver, table du contrat de 342 377 lignes
 (100 % des heures couvertes dans chaque ville). Résultats des questions métier : voir [RAPPORT.md](RAPPORT.md).

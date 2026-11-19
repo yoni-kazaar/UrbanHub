@@ -1,9 +1,9 @@
 """
-Étape 2 – Collecteur régulier (flux IoT simulé).
+Étape 2 : collecteur régulier (flux IoT simulé).
 
 Toutes les INTERVALLE_MINUTES (15 par défaut) :
   - interroge /v3/locations/{id}/latest pour chaque site du catalogue ;
-  - dépose UN fichier brut horodaté dans
+  - dépose un fichier brut horodaté dans
     bronze/pollution/year=AAAA/month=MM/day=JJ/pollution_AAAAMMJJTHHMMSSZ.json
   - Bronze n'est jamais modifié : chaque relevé est un nouveau fichier.
 Le catalogue des capteurs est rafraîchi une fois par jour.

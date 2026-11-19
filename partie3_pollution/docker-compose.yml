@@ -1,4 +1,4 @@
-# Partie 3 – Pollution (Personne C)
+# Partie 3 : Pollution (Personne C)
 #
 # Tout lancer (collecteur + pipeline) :  docker compose up -d --build
 # Avec un MinIO local de dev :           docker compose --profile local up -d --build

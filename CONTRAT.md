@@ -1,4 +1,4 @@
-# UrbanHub – Contrat commun
+# UrbanHub - Contrat commun
 
 Ce contrat est le seul lien entre les 4 parties du projet. Tant que chacun le respecte, chacun avance seul, sans attendre les autres.
 
@@ -8,10 +8,10 @@ Toute modification du contrat doit être validée par les 4 membres de l'équipe
 
 | Personne | Partie | Source | Type de flux |
 | --- | --- | --- | --- |
-| A | 1 – Météo | Météo-France (données horaires, data.gouv.fr) | Batch (5 dernières années) |
-| B | 2 – Vélos | API CityBikes | Streaming (toutes les 2-3 min) |
-| C | 3 – Pollution | API OpenAQ | IoT (ingestion régulière) |
-| D | 4 – Plateforme et analyse croisée | Les 3 tables Gold | Jointure |
+| A | 1 - Météo | Météo-France (données horaires, data.gouv.fr) | Batch (5 dernières années) |
+| B | 2 - Vélos | API CityBikes | Streaming (toutes les 2-3 min) |
+| C | 3 - Pollution | API OpenAQ | IoT (ingestion régulière) |
+| D | 4 - Plateforme et analyse croisée | Les 3 tables Gold | Jointure |
 
 Le détail des tâches est dans [Personne.md](Personne.md).
 
@@ -23,10 +23,10 @@ Le détail des tâches est dans [Personne.md](Personne.md).
 Sources (Météo-France, CityBikes, OpenAQ)
       │  ingestion : scripts Python (collecteurs pour B et C)
       ▼
-MinIO – Data Lake              bronze → silver → gold (Parquet)
+MinIO - Data Lake              bronze -> silver -> gold (Parquet)
       │  lecture des 3 tables Gold
       ▼
-Streamlit – indicateurs urbains   une page par partie + accueil
+Streamlit - indicateurs urbains   une page par partie + accueil
 ```
 
 - **MinIO** est hébergé sur **un seul VPS**, administré par D. Les autres s'y connectent comme à un service web (URL HTTPS + clés), **sans accès SSH** au serveur.
@@ -84,7 +84,7 @@ Chacun reste libre de produire d'autres tables pour ses propres analyses.
 | `temperature_c` | décimal | °C |
 | `precipitation_mm` | décimal | mm |
 | `wind_speed_ms` | décimal | m/s |
-| `wind_direction_deg` | décimal | degrés (0–360) |
+| `wind_direction_deg` | décimal | degrés (0-360) |
 | `visibility_m` | décimal | m |
 | `pressure_hpa` | décimal | hPa |
 

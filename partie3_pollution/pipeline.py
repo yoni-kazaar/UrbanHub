@@ -48,7 +48,7 @@ def un_passage():
         etape("2/3 Silver (nettoyage)", silver.main)
         etape("3/3 Gold (table du contrat)", gold.main)
     except EtapeEchouee as e:
-        print(f"\nÉCHEC à l'étape « {e} » : Gold non publié pour ce passage.", flush=True)
+        print(f"\nÉchec à l'étape '{e}' : Gold non publié pour ce passage.", flush=True)
         return False
     print("\nPipeline terminé : gold/pollution/pollution_ville_heure.parquet est à jour.", flush=True)
     return True
