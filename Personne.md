@@ -16,7 +16,7 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 
 ---
 
-<a id="vue-densemble"></a>
+
 
 ## Vue d'ensemble
 
@@ -31,7 +31,7 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 
 ---
 
-<a id="architecture"></a>
+
 
 ## Architecture
 
@@ -75,7 +75,7 @@ streamlit run app/Accueil.py          # interface
 
 ---
 
-<a id="se-connecter"></a>
+
 
 ## Se connecter à MinIO
 
@@ -102,7 +102,7 @@ Les autres peuvent lister et lire leurs fichiers avec leur compte dans le code, 
 
 ---
 
-<a id="regles-minio"></a>
+
 
 ## Règles MinIO
 
@@ -128,7 +128,7 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ---
 
-<a id="jalons"></a>
+
 
 ## Jalons
 
@@ -145,7 +145,7 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ---
 
-<a id="personne-a"></a>
+
 
 ## Personne A – Météo (flux batch, NOAA)
 
@@ -182,7 +182,7 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ---
 
-<a id="personne-b"></a>
+
 
 ## Personne B – Vélos (flux streaming, CityBikes)
 
@@ -192,11 +192,11 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ### 1. Collecte
 
-- [ ] Jour 1 : trouver une machine allumée en permanence (PC fixe, ou le VPS : D déploie le collecteur dans Coolify).
+- [x] Jour 1 : trouver une machine allumée en permanence (PC fixe, ou le VPS : D déploie le collecteur dans Coolify).
 - [x] Trouver l'identifiant du réseau de chacune des 8 villes dans l'API (voir `partie2_velos/README.md`).
 - [x] Écrire un collecteur qui tourne toutes les 2 à 3 minutes et dépose les relevés dans `bronze/velos/`. Une erreur sur un réseau ne doit pas arrêter la boucle.
-- [ ] Le lancer dans un conteneur Docker avec `restart: always`.
-- [ ] **Lancer la collecte le plus tôt possible**, puis vérifier chaque jour qu'elle tourne (`docker compose logs`).
+- [x] Le lancer dans un conteneur Docker avec `restart: always`.
+- [x] **Lancer la collecte le plus tôt possible**, puis vérifier chaque jour qu'elle tourne (`docker compose logs`).
 
 ### 2. Traitement
 
@@ -223,7 +223,7 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ---
 
-<a id="personne-c"></a>
+
 
 ## Personne C – Pollution (flux IoT, OpenAQ)
 
@@ -262,7 +262,7 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ---
 
-<a id="personne-d"></a>
+
 
 ## Personne D – Plateforme et analyse croisée
 
