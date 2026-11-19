@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+partie3_pollution/etat/
+partie3_pollution/data_lake/
+partie3_pollution/minio_local_data/
