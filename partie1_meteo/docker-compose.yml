@@ -22,3 +22,21 @@ services:
       - "host.docker.internal:host-gateway"   # nécessaire sous Linux
     volumes:
       - ..:/app
+
+  # Application Streamlit de l'équipe, lancée dans Docker :
+  #   docker compose -f partie1_meteo/docker-compose.yml up -d app   →  http://localhost:8501
+  app:
+    build:
+      context: ..
+      dockerfile: partie1_meteo/Dockerfile.app
+    profiles: ["app"]
+    command: streamlit run app/Accueil.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+    env_file: ../.env
+    environment:
+      MINIO_ENDPOINT: http://host.docker.internal:9000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - ..:/app

@@ -161,24 +161,24 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ### 2. Traitement
 
-- [ ] Filtrer selon les codes qualité Météo-France, gérer les valeurs manquantes et convertir `AAAAMMJJHH` en `timestamp` UTC (température, vent, pression, visibilité, précipitations).
-- [ ] Nettoyer (valeurs manquantes, unités, heure en UTC) et écrire dans `silver/meteo/` en gardant **toutes** les stations françaises (avec `latitude` et `longitude`).
-- [ ] Rattacher chaque station à sa ville (`common.villes.rattacher_ville`), puis produire `gold/meteo/meteo_ville_heure.parquet` et déposer `gold/meteo/_SUCCESS`.
+- [x] Filtrer selon les codes qualité Météo-France, gérer les valeurs manquantes et convertir `AAAAMMJJHH` en `timestamp` UTC (température, vent, pression, visibilité, précipitations).
+- [x] Nettoyer (valeurs manquantes, unités, heure en UTC) et écrire dans `silver/meteo/` en gardant **toutes** les stations françaises (avec `latitude` et `longitude`).
+- [x] Rattacher chaque station à sa ville (`common.villes.rattacher_ville`), puis produire `gold/meteo/meteo_ville_heure.parquet` et déposer `gold/meteo/_SUCCESS`.
 
 ### 3. Analyse
 
-- [ ] Répondre aux 4 questions métier :
+- [x] Répondre aux 4 questions métier :
   1. Périodes météorologiques anormales
   2. Lien entre météo et visibilité
   3. Évolution saisonnière de la température, en France et dans les 8 villes
   4. Jours extrêmes
-- [ ] **IA :** détecter les anomalies (Isolation Forest ou z-score).
+- [x] **IA :** détecter les anomalies (Isolation Forest ou z-score).
 
 ### 4. Livrables
 
-- [ ] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
-- [ ] Partie du rapport
-- [ ] Vidéo de démo
+- [x] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
+- [x] Partie du rapport ([partie1_meteo/RAPPORT.md](partie1_meteo/RAPPORT.md))
+- [x] Séquence météo pour la vidéo de présentation de l'équipe (script : [partie1_meteo/VIDEO.md](partie1_meteo/VIDEO.md))
 
 ---
 
