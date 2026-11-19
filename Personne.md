@@ -5,12 +5,13 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 ## Sommaire
 
 1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture sur le VPS](#architecture)
+2. [Architecture](#architecture)
 3. [Règles MinIO](#regles-minio)
-4. [Personne A – Météo (flux batch)](#personne-a)
-5. [Personne B – Vélos (flux streaming)](#personne-b)
-6. [Personne C – Pollution (flux IoT)](#personne-c)
-7. [Personne D – Plateforme et analyse croisée](#personne-d)
+4. [Jalons](#jalons)
+5. [Personne A – Météo (flux batch)](#personne-a)
+6. [Personne B – Vélos (flux streaming)](#personne-b)
+7. [Personne C – Pollution (flux IoT)](#personne-c)
+8. [Personne D – Plateforme et analyse croisée](#personne-d)
 
 ---
 
@@ -18,71 +19,56 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 
 ## Vue d'ensemble
 
-| Personne | Partie | Source | Table Gold | Schéma PostgreSQL | Tableau de bord Grafana |
-| :---: | --- | --- | --- | --- | --- |
-| **A** | Météo – batch | NOAA Global Hourly | `gold/meteo/meteo_ville_heure.parquet` | `meteo` | Météo |
-| **B** | Vélos – streaming | API CityBikes | `gold/velos/velos_ville_heure.parquet` | `velos` | Vélos |
-| **C** | Pollution – IoT | API OpenAQ | `gold/pollution/pollution_ville_heure.parquet` | `pollution` | Pollution |
-| **D** | Plateforme et analyse croisée | Les 3 tables Gold | – | `croise` | Accueil et Analyse croisée |
+| Personne | Partie | Source | Table Gold | Page Streamlit |
+| :---: | --- | --- | --- | --- |
+| **A** | Météo – batch | NOAA Global Hourly | `gold/meteo/meteo_ville_heure.parquet` | `1_Meteo.py` |
+| **B** | Vélos – streaming | API CityBikes | `gold/velos/velos_ville_heure.parquet` | `2_Velos.py` |
+| **C** | Pollution – IoT | API OpenAQ | `gold/pollution/pollution_ville_heure.parquet` | `3_Pollution.py` |
+| **D** | Plateforme et analyse croisée | Les 3 tables Gold | – | `Accueil.py`, `4_Croisee.py` |
 
-> **À faire par tout le monde le jour 1 :** relire et valider [CONTRAT.md](CONTRAT.md), récupérer son compte MinIO et son accès SSH au VPS, puis travailler uniquement dans son propre dossier.
+> **À faire par tout le monde le jour 1 :** relire et valider [CONTRAT.md](CONTRAT.md), récupérer son compte MinIO (URL + clés, fournis par D), le mettre dans son `.env`, puis travailler uniquement dans son propre dossier.
 
 ---
 
 <a id="architecture"></a>
 
-## Architecture sur le VPS
+## Architecture
 
 ```
 Sources (NOAA, CityBikes, OpenAQ)
-      │  ingestion : scripts et collecteurs Docker
+      │  ingestion : scripts Python (collecteurs pour B et C)
       ▼
 MinIO – Data Lake         bronze → silver → gold (Parquet)
-      │  chargement de chaque table Gold
+      │  lecture des 3 tables Gold
       ▼
-PostgreSQL – Data Warehouse   un schéma par partie + schéma « croise »
-      │
-      ▼
-Grafana – indicateurs urbains   un tableau de bord par partie
+Streamlit – indicateurs urbains   une page par partie
 ```
 
-Un `docker-compose.yml` par personne, tous reliés au même réseau Docker externe `urbanhub` :
+- **MinIO** tourne sur le VPS de D. Les autres s'y connectent par HTTPS avec leur compte MinIO : **personne d'autre que D n'a d'accès SSH au VPS**.
+- **GitHub** contient le code uniquement, jamais les données.
+- Les collecteurs de B et C tournent sur une machine allumée en continu (la leur, ou le VPS déployé par D à leur demande) avec `restart: always` s'ils sont dans Docker.
 
 ```
 UrbanHub/
 ├── CONTRAT.md
 ├── Personne.md
 ├── .env.example
-├── infra/                      # D : MinIO, PostgreSQL, Grafana, Caddy (HTTPS)
-│   └── docker-compose.yml
-├── partie1_meteo/              # A : tâche batch lancée à la main
-│   ├── docker-compose.yml
-│   └── grafana/meteo.json
-├── partie2_velos/              # B : collecteur, restart: always
-│   ├── docker-compose.yml
-│   └── grafana/velos.json
-├── partie3_pollution/          # C : collecteur, restart: always
-│   ├── docker-compose.yml
-│   └── grafana/pollution.json
-└── partie4_croisee/            # D : vues SQL, modèle IA, tableaux de bord
-    └── grafana/accueil.json, croise.json
+├── requirements.txt
+├── infra/                      # D : MinIO et Caddy
+├── common/                     # villes, accès MinIO, schémas Gold, fausses tables
+├── partie1_meteo/              # A
+├── partie2_velos/              # B
+├── partie3_pollution/          # C
+├── partie4_croisee/            # D
+└── app/                        # Streamlit : Accueil.py (D) et pages/ (une par personne)
 ```
 
-**Déployer sa partie sur le VPS :**
+**Lancer son code** (depuis la racine du dépôt, avec `PYTHONPATH=.`) :
 
 ```bash
-cd UrbanHub/partieX_xxx
-git pull
-docker compose up -d --build
+python -m partie2_velos.collecte      # exemple : collecteur de B
+streamlit run app/Accueil.py          # interface
 ```
-
-**Accéder à MinIO et PostgreSQL depuis son PC (tunnel SSH, rien n'est exposé sur Internet) :**
-
-```bash
-ssh -L 9000:localhost:9000 -L 9001:localhost:9001 -L 5432:localhost:5432 user@ip-du-vps
-```
-
-L'API MinIO est alors sur `localhost:9000`, sa console sur `localhost:9001` et PostgreSQL sur `localhost:5432`.
 
 ---
 
@@ -99,15 +85,32 @@ L'API MinIO est alors sur `localhost:9000`, sa console sur `localhost:9001` et P
 | `pollution` (C) | `bronze/pollution/`, `silver/pollution/`, `gold/pollution/` | `gold/` |
 | `croise` (D) | `gold/croise/` | tout |
 
-Personne ne peut écraser les données d'un autre, même par erreur.
+Personne ne peut écraser les données d'un autre, même par erreur. Seul D connaît le compte administrateur.
 
 ### Règles d'écriture
 
 - **Bronze ne se modifie jamais** : chaque relevé est un nouveau fichier horodaté (`velos_20261119T140000Z.json`).
 - **Silver et Gold** peuvent être réécrits, uniquement par leur propriétaire.
-- **Table Gold prête** : son propriétaire dépose un fichier vide `gold/<source>/_SUCCESS`. Les chargements vers PostgreSQL n'importent que les tables qui en ont un.
+- **Table Gold prête** : son propriétaire dépose un fichier vide `gold/<source>/_SUCCESS`.
 - **Versioning activé** sur le bucket `gold`, pour pouvoir revenir en arrière.
 - **Développement** : tester d'abord sur un MinIO local, puis basculer sur le VPS en changeant `MINIO_ENDPOINT` dans `.env`.
+
+---
+
+<a id="jalons"></a>
+
+## Jalons
+
+À fixer ensemble le jour 1 (le premier à compléter) :
+
+| Jalon | Date |
+| --- | --- |
+| Contrat validé, comptes MinIO distribués, collectes B et C lancées | |
+| Premier fichier Gold (même partiel) déposé par A, B et C | |
+| **Gel de la collecte** (au moins 1 à 2 semaines avant le rendu, pour que D ait de quoi entraîner son modèle) | |
+| Analyses et pages Streamlit terminées | |
+| Rapport assemblé et relu | |
+| Vidéos de démo | |
 
 ---
 
@@ -115,22 +118,21 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ## Personne A – Météo (flux batch, NOAA)
 
-**Dossier :** `partie1_meteo/` · **Compte MinIO :** `meteo` · **Schéma PostgreSQL :** `meteo`
+**Dossier :** `partie1_meteo/` · **Compte MinIO :** `meteo`
 
-> ⚠️ **À vérifier avant de lancer :** 5 ans de données pour toute la France représentent plusieurs Go. Contrôler l'espace disque libre du VPS.
+> ⚠️ **À vérifier avant de lancer :** 5 ans de données pour toute la France représentent plusieurs Go. Vérifier avec D l'espace disque libre sur le VPS.
 
 ### 1. Collecte
 
 - [ ] Récupérer la liste des stations NOAA et garder les stations françaises.
 - [ ] Écrire un script qui télécharge **en parallèle** les fichiers des 5 dernières années et les dépose dans `bronze/meteo/`.
-- [ ] Mettre le script dans un conteneur Docker lancé à la main sur le VPS.
+- [ ] Lancer le script à la main depuis sa machine (aucun conteneur permanent nécessaire).
 
 ### 2. Traitement
 
 - [ ] Décoder les champs : température, vent (vitesse et direction), pression, visibilité, précipitations. Les valeurs `+9999` signifient « manquant ».
-- [ ] Nettoyer (valeurs manquantes, unités, heure en UTC) et écrire dans `silver/meteo/` en gardant **toutes** les stations françaises.
-- [ ] Produire `gold/meteo/meteo_ville_heure.parquet`, puis déposer `gold/meteo/_SUCCESS`.
-- [ ] Charger la table Gold dans le schéma PostgreSQL `meteo`.
+- [ ] Nettoyer (valeurs manquantes, unités, heure en UTC) et écrire dans `silver/meteo/` en gardant **toutes** les stations françaises (avec `latitude` et `longitude`).
+- [ ] Rattacher chaque station à sa ville (`common.villes.rattacher_ville`), puis produire `gold/meteo/meteo_ville_heure.parquet` et déposer `gold/meteo/_SUCCESS`.
 
 ### 3. Analyse
 
@@ -143,7 +145,7 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ### 4. Livrables
 
-- [ ] Tableau de bord Grafana **Météo** (courbes saisonnières, carte des stations, jours extrêmes), exporté dans `partie1_meteo/grafana/meteo.json`
+- [ ] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
 - [ ] Partie du rapport
 - [ ] Vidéo de démo
 
@@ -153,24 +155,26 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ## Personne B – Vélos (flux streaming, CityBikes)
 
-**Dossier :** `partie2_velos/` · **Compte MinIO :** `velos` · **Schéma PostgreSQL :** `velos`
+**Dossier :** `partie2_velos/` · **Compte MinIO :** `velos`
 
-> ⚠️ **Priorité absolue :** la collecte doit démarrer sur le VPS dès le jour 1 et tourner sans interruption, sinon il n'y aura pas assez de données.
+> ⚠️ **Priorité absolue :** la collecte doit démarrer dès le jour 1 et tourner sans interruption, sinon il n'y aura pas assez de données.
 
 ### 1. Collecte
 
+- [ ] Jour 1 : trouver une machine allumée en permanence (PC fixe, ou le VPS déployé par D).
 - [ ] Trouver l'identifiant du réseau de chacune des 8 villes dans l'API.
-- [ ] Écrire un collecteur qui tourne toutes les 2 à 3 minutes et dépose les relevés dans `bronze/velos/`.
-- [ ] Le déployer sur le VPS dans un conteneur avec `restart: always`.
+- [ ] Écrire un collecteur qui tourne toutes les 2 à 3 minutes et dépose les relevés dans `bronze/velos/`. Une erreur sur un réseau ne doit pas arrêter la boucle.
+- [ ] Le lancer dans un conteneur Docker avec `restart: always`.
 - [ ] **Lancer la collecte le plus tôt possible**, puis vérifier chaque jour qu'elle tourne (`docker compose logs`).
 
 ### 2. Traitement
 
-- [ ] Nettoyer et dédoublonner, puis écrire dans `silver/velos/`.
+- [ ] Nettoyer et dédoublonner, puis écrire dans `silver/velos/` (une ligne par station et par relevé, avec `latitude` et `longitude`).
 - [ ] Calculer le taux d'occupation et produire `gold/velos/velos_ville_heure.parquet`, puis déposer `gold/velos/_SUCCESS`.
-- [ ] Charger la table Gold et la table des stations dans le schéma PostgreSQL `velos`.
 
 ### 3. Analyse
+
+Les analyses par station et par zone se font sur Silver, car Gold est agrégé par ville.
 
 - [ ] Répondre aux 5 questions métier :
     1. Stations les plus utilisées
@@ -182,7 +186,7 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ### 4. Livrables
 
-- [ ] Tableau de bord Grafana **Vélos** (carte des stations colorées selon leur remplissage, courbe sur 24 h, liste des stations critiques), exporté dans `partie2_velos/grafana/velos.json`
+- [ ] Page Streamlit `app/pages/2_Velos.py` (carte des stations colorées selon leur remplissage, courbe sur 24 h, liste des stations critiques)
 - [ ] Partie du rapport
 - [ ] Vidéo de démo
 
@@ -192,24 +196,23 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ## Personne C – Pollution (flux IoT, OpenAQ)
 
-**Dossier :** `partie3_pollution/` · **Compte MinIO :** `pollution` · **Schéma PostgreSQL :** `pollution`
+**Dossier :** `partie3_pollution/` · **Compte MinIO :** `pollution`
 
-> ⚠️ **Priorité :** créer la clé API et lancer la collecte sur le VPS dès le jour 1.
+> ⚠️ **Priorité :** créer la clé API et lancer la collecte dès le jour 1.
 
 ### 1. Collecte
 
 - [ ] Créer la clé API gratuite OpenAQ et la mettre dans `.env` (jamais sur GitHub).
+- [ ] Récupérer **d'abord l'historique** des dernières années via l'API : c'est lui qui rend la Partie 4 exploitable.
 - [ ] Lister les capteurs français des 8 villes pour PM2.5, PM10, NO2, O3 et CO.
 - [ ] Écrire un collecteur régulier (toutes les 15 à 60 minutes) qui dépose les relevés dans `bronze/pollution/`.
-- [ ] Le déployer sur le VPS dans un conteneur avec `restart: always`.
+- [ ] Le lancer sur une machine allumée en continu, dans un conteneur avec `restart: always`.
 - [ ] **Lancer la collecte le plus tôt possible.**
-- [ ] Récupérer aussi l'historique des dernières années via l'API.
 
 ### 2. Traitement
 
-- [ ] Nettoyer (unités en µg/m³, doublons, valeurs impossibles) et écrire dans `silver/pollution/`.
-- [ ] Produire `gold/pollution/pollution_ville_heure.parquet`, puis déposer `gold/pollution/_SUCCESS`.
-- [ ] Charger la table Gold dans le schéma PostgreSQL `pollution`.
+- [ ] Nettoyer (unités en µg/m³, doublons, valeurs impossibles) et écrire dans `silver/pollution/`. Attention : OpenAQ donne souvent le CO en ppm, il faut le convertir.
+- [ ] Produire `gold/pollution/pollution_ville_heure.parquet` (valeurs absentes laissées vides, jamais 0), puis déposer `gold/pollution/_SUCCESS`.
 
 ### 3. Analyse
 
@@ -222,7 +225,7 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ### 4. Livrables
 
-- [ ] Tableau de bord Grafana **Pollution** (carte des capteurs, courbe par heure de la journée, alertes de dépassement), exporté dans `partie3_pollution/grafana/pollution.json`
+- [ ] Page Streamlit `app/pages/3_Pollution.py` (carte des capteurs, courbe par heure de la journée, dépassements de seuils)
 - [ ] Partie du rapport
 - [ ] Vidéo de démo
 
@@ -232,38 +235,39 @@ Personne ne peut écraser les données d'un autre, même par erreur.
 
 ## Personne D – Plateforme et analyse croisée
 
-**Dossiers :** `infra/` et `partie4_croisee/` · **Compte MinIO :** `croise` · **Schéma PostgreSQL :** `croise`
+**Dossiers :** `infra/`, `common/`, `partie4_croisee/` et `app/` · **Compte MinIO :** `croise`
 
-> ⚠️ **Priorité :** la plateforme doit être en ligne dès le jour 1, car B et C en ont besoin pour lancer leur collecte.
+> ⚠️ **Priorité :** MinIO doit être en ligne dès le jour 1, car B et C en ont besoin pour lancer leur collecte.
 
 ### 1. Plateforme (jour 1)
 
-- [ ] Sécuriser le VPS : pare-feu `ufw`, connexion SSH par clé, un compte par membre.
-- [ ] Écrire `infra/docker-compose.yml` : MinIO, PostgreSQL, Grafana et Caddy (HTTPS pour Grafana uniquement).
-- [ ] Créer le réseau Docker externe `urbanhub`.
+- [ ] Sécuriser le VPS : pare-feu `ufw` n'ouvrant que le port 443 et SSH, connexion SSH **par clé**, `root` désactivé. Seul D a un accès SSH.
+- [ ] Écrire `infra/docker-compose.yml` : MinIO et Caddy (HTTPS). Ne pas exposer la console MinIO (9001) sur Internet.
 - [ ] Créer les buckets `bronze`, `silver` et `gold`, et activer le versioning sur `gold`.
-- [ ] Créer les 4 comptes MinIO avec leurs droits (voir [Règles MinIO](#regles-minio)).
-- [ ] Créer les 4 schémas PostgreSQL et un utilisateur par personne.
-- [ ] Ajouter `.env.example` dans le dépôt.
+- [ ] Créer les 4 comptes MinIO avec leurs droits (voir [Règles MinIO](#regles-minio)), et transmettre à chacun son URL et ses clés (jamais par GitHub).
+- [ ] Mettre en place une sauvegarde (snapshot du VPS ou du volume MinIO).
+- [ ] Ajouter `.env.example` et `requirements.txt` dans le dépôt.
+- [ ] Déployer à la demande les collecteurs de B et C sur le VPS, s'ils n'ont pas de machine allumée.
 
-### 2. Données simulées
+### 2. Code commun et données simulées
 
-- [ ] Écrire un générateur de **fausses tables Gold** au format du contrat, pour travailler sans attendre les autres.
-- [ ] Les charger dans les schémas `meteo`, `velos` et `pollution` tant que les vraies tables ne sont pas prêtes.
+- [ ] Écrire `common/` : `villes.py` (les 8 villes et leurs centres), `lake.py` (accès MinIO), `schemas.py` (format des 3 tables Gold et validation).
+- [ ] Écrire `common/fake_gold.py` : un générateur de **fausses tables Gold** au format du contrat, pour travailler et tester l'interface sans attendre les autres.
+- [ ] Faire relire `common/` par au moins un autre membre.
 
 ### 3. Analyse
 
-- [ ] Créer dans le schéma `croise` les vues SQL qui joignent les 3 tables sur `ville` + `heure`.
-- [ ] Calculer les corrélations et répondre aux 4 questions croisées :
+- [ ] Joindre les 3 tables Gold sur `ville` + `heure` (période commune), puis calculer les corrélations.
+- [ ] Répondre aux 4 questions croisées :
     1. Relation entre météo et pollution
     2. Influence de la météo sur l'usage des vélos
     3. Conditions favorables à la mobilité douce
     4. Périodes où mobilité, pollution et météo interagissent fortement
-- [ ] **IA :** construire un modèle qui prédit l'usage des vélos à partir de la météo, et un score « conditions favorables au vélo ».
+- [ ] **IA :** construire un modèle qui prédit l'usage des vélos à partir de la météo (validation sur la période la plus récente, pas aléatoire), et un score « conditions favorables au vélo ».
 
 ### 4. Livrables
 
-- [ ] Tableau de bord Grafana **Accueil** (carte des 8 villes et indicateurs urbains) et **Analyse croisée**, exportés dans `partie4_croisee/grafana/`
+- [ ] Page d'accueil `app/Accueil.py` (carte des 8 villes et indicateurs urbains) et page `app/pages/4_Croisee.py`
 - [ ] Remplacer les fausses tables Gold par les vraies.
 - [ ] Partie du rapport
 - [ ] Vidéo de démo

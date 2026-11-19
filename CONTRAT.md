@@ -19,29 +19,33 @@ Le détail des tâches est dans [Personne.md](Personne.md).
 
 ```
 Sources (NOAA, CityBikes, OpenAQ)
-      │  ingestion
+      │  ingestion : scripts Python (collecteurs pour B et C)
       ▼
 MinIO – Data Lake              bronze → silver → gold (Parquet)
-      │  chargement des tables Gold
+      │  lecture des 3 tables Gold
       ▼
-PostgreSQL – Data Warehouse    un schéma par partie
-      │
-      ▼
-Grafana – indicateurs urbains  un tableau de bord par partie
+Streamlit – indicateurs urbains   une page par partie + accueil
 ```
+
+- **MinIO** est hébergé sur **un seul VPS**, administré par D. Les autres s'y connectent comme à un service web (URL HTTPS + clés), **sans accès SSH** au serveur.
+- **GitHub** contient le code, jamais les données (ni Bronze, ni Silver, ni Gold).
+- Il n'y a pas de base de données séparée : l'interface lit directement les tables Gold (Parquet) dans MinIO.
 
 ## Règles communes
 
 | Règle | Valeur |
 | --- | --- |
 | Villes | `Paris`, `Lyon`, `Marseille`, `Toulouse`, `Lille`, `Bordeaux`, `Nantes`, `Strasbourg` (colonne `ville`, orthographe exacte) |
+| Centres des villes | Un seul fichier de référence, `common/villes.py` (latitude et longitude). Personne n'utilise d'autres coordonnées |
 | Date et heure | Colonne `timestamp` en **UTC**, format ISO 8601 (`2026-11-19T14:00:00Z`) |
 | Heure d'agrégation | Colonne `heure` = `timestamp` arrondi à l'heure inférieure, en UTC |
+| Type de `heure` dans Parquet | Vraie colonne `datetime` avec fuseau UTC, **pas du texte** (sinon la jointure échoue) |
 | Affichage | Les graphiques affichent l'heure de Paris (`Europe/Paris`). Le stockage reste toujours en UTC |
 | Position | Colonnes `latitude` et `longitude` en degrés décimaux |
 | Noms de colonnes | En minuscules avec des `_` (`wind_speed`, `bikes_available`) |
-| Rattachement à une ville | Une station ou un capteur appartient à une ville s'il est à moins de **30 km** de son centre. Sinon, `ville` est vide |
+| Rattachement à une ville | Une station ou un capteur appartient à une ville s'il est à moins de **30 km** de son centre (la plus proche si plusieurs). Sinon, `ville` est vide. Fonction commune : `common.villes.rattacher_ville` |
 | Agrégation par ville et par heure | **Moyenne** des stations ou capteurs de la ville |
+| Colonnes minimales de Silver | `ville`, `latitude`, `longitude`, `timestamp`, plus les mesures (les analyses par station se font sur Silver) |
 
 ## Stockage : Data Lake MinIO
 
@@ -106,6 +110,8 @@ Chacun reste libre de produire d'autres tables pour ses propres analyses.
 
 Une valeur absente est laissée vide (`null`), jamais remplacée par 0.
 
+Les trois tables n'ont pas la même durée : la météo couvre 5 ans, les vélos seulement depuis le début de leur collecte. La Partie 4 travaille donc sur la **période commune** des trois tables.
+
 ## Règles d'écriture dans MinIO
 
 | Compte MinIO | Peut écrire dans | Peut lire |
@@ -119,30 +125,22 @@ Une valeur absente est laissée vide (`null`), jamais remplacée par 0.
 - **Silver et Gold** peuvent être réécrits, uniquement par leur propriétaire.
 - **Une table Gold est prête** quand son propriétaire a déposé un fichier vide `gold/<source>/_SUCCESS`.
 - Le bucket `gold` a le **versioning activé**.
+- Le compte administrateur de MinIO n'est connu que de D.
 
-## Data Warehouse : PostgreSQL
+## Interface : Streamlit
 
-Chaque table Gold est chargée dans PostgreSQL, dans le schéma de sa partie, avec le même nom et les mêmes colonnes que dans MinIO.
+- Une page par partie : **Météo** (A), **Vélos** (B), **Pollution** (C), plus **Accueil** et **Analyse croisée** (D).
+- Chaque page lit les tables Gold dans MinIO (clés en lecture seule sur `gold/`).
+- Le code des pages est dans `app/`. L'application peut être lancée en local (`streamlit run app/Accueil.py`) ou hébergée gratuitement sur Streamlit Community Cloud.
 
-| Schéma | Propriétaire | Tables |
-| --- | --- | --- |
-| `meteo` | A | `meteo.meteo_ville_heure` |
-| `velos` | B | `velos.velos_ville_heure` |
-| `pollution` | C | `pollution.pollution_ville_heure` |
-| `croise` | D | Vues SQL qui joignent les 3 tables sur `ville` + `heure` |
+## Infrastructure : un VPS pour MinIO
 
-Chacun écrit uniquement dans son schéma. Les autres schémas sont en lecture seule.
-
-## Interface : Grafana
-
-- Un tableau de bord par partie : **Météo** (A), **Vélos** (B), **Pollution** (C), **Accueil** et **Analyse croisée** (D).
-- Chaque tableau de bord lit PostgreSQL et est exporté en JSON dans `partieX_xxx/grafana/`.
-
-## Infrastructure : VPS
-
-- Tous les services tournent sur le VPS avec Docker, reliés par le réseau Docker externe `urbanhub`.
-- Un `docker-compose.yml` par partie : chacun déploie et redémarre ses conteneurs sans toucher à ceux des autres.
-- Seul Grafana est exposé sur Internet, en HTTPS via Caddy. MinIO et PostgreSQL sont accessibles par tunnel SSH uniquement.
+- Un seul VPS, celui de D, héberge MinIO avec Docker.
+- Seul le port **443 (HTTPS)** est ouvert, derrière Caddy. La console d'administration MinIO (9001) n'est **jamais** exposée sur Internet.
+- **A, B et C n'ont pas d'accès SSH** : ils utilisent uniquement l'API S3 de MinIO avec leur compte (`MINIO_ENDPOINT` et clés dans leur `.env`). D crée et gère les comptes.
+- **Collecteurs B et C** : ils doivent tourner en continu, sur une machine allumée en permanence (un PC allumé, ou le VPS déployé par D à leur demande). Ils n'ont besoin que de l'URL et des clés MinIO.
+- **Sauvegardes** : D fait un snapshot régulier du VPS ou du volume MinIO.
+- **Développement** : tester d'abord sur un MinIO local, puis basculer sur le VPS en changeant `MINIO_ENDPOINT`.
 
 ## Organisation du dépôt
 
@@ -153,23 +151,28 @@ UrbanHub/
 ├── CONTRAT.md                  # ce fichier
 ├── Personne.md                 # tâches de chaque personne
 ├── .env.example                # variables attendues, sans valeurs secrètes
-├── infra/                      # D : MinIO, PostgreSQL, Grafana, Caddy
-│   └── docker-compose.yml
+├── requirements.txt
+├── infra/                      # D : MinIO et Caddy (docker-compose.yml)
+├── common/                     # code partagé (relu par au moins 2 personnes)
+│   ├── villes.py               # les 8 villes, leurs centres, rattacher_ville
+│   ├── lake.py                 # lecture/écriture MinIO
+│   ├── schemas.py              # format des 3 tables Gold + validation
+│   └── fake_gold.py            # fausses tables Gold (pour D et l'interface)
 ├── partie1_meteo/              # A
-│   ├── docker-compose.yml
-│   └── grafana/
 ├── partie2_velos/              # B
-│   ├── docker-compose.yml
-│   └── grafana/
 ├── partie3_pollution/          # C
-│   ├── docker-compose.yml
-│   └── grafana/
-└── partie4_croisee/            # D
-    └── grafana/
+├── partie4_croisee/            # D
+└── app/                        # interface Streamlit
+    ├── Accueil.py              # D
+    └── pages/
+        ├── 1_Meteo.py          # A
+        ├── 2_Velos.py          # B
+        ├── 3_Pollution.py      # C
+        └── 4_Croisee.py        # D
 ```
 
 ## Secrets
 
-- Les clés et mots de passe (clé OpenAQ, comptes MinIO, comptes PostgreSQL) vont dans un fichier `.env`, **jamais commité**.
+- Les clés et mots de passe (clé OpenAQ, comptes MinIO) vont dans un fichier `.env`, **jamais commité**.
 - Le fichier `.env.example` liste les variables attendues, sans leur valeur.
-- Chaque personne n'utilise que son propre compte MinIO et PostgreSQL.
+- Chaque personne n'utilise que son propre compte MinIO.
