@@ -8,10 +8,9 @@ Responsable : personne A. Voir [Personne.md](../Personne.md#personne-a) et [CONT
 | --- | --- |
 | `config.py` | Paramètres : URL NOAA, années, nombre de threads, buckets |
 | `provisoire.py` | Villes et accès MinIO, en attendant `common/` (à supprimer ensuite) |
-| `init_local.py` | Étape 0 : crée les buckets du MinIO **local** |
 | `stations.py` | Étape 1 : liste des stations françaises + rattachement aux villes |
 | `telechargement.py` | Étape 2 : téléchargement parallèle vers Bronze |
-| `Dockerfile`, `docker-compose.minio-local.yml` | MinIO local + conteneur Python |
+| `Dockerfile`, `docker-compose.yml` | Conteneur Python pour lancer les scripts |
 
 ## Pourquoi Docker pour lancer Python ?
 
@@ -19,38 +18,45 @@ Sur certains PC Windows, Smart App Control bloque la bibliothèque `pyarrow`
 (nécessaire pour Parquet). Le code tourne donc dans un conteneur Python :
 même résultat sur toutes les machines.
 
+## Prérequis
+
+1. Le MinIO de [infra/](../infra/README.md) tourne : `docker compose -f infra/docker-compose.yml up -d minio`
+2. Un fichier `.env` à la racine (modèle : [.env.example](../.env.example)) avec le compte **`urbanhub-meteo`** :
+   ```
+   MINIO_ENDPOINT=http://localhost:9000
+   MINIO_ACCESS_KEY=urbanhub-meteo
+   MINIO_SECRET_KEY=<secret fourni par D>
+   ```
+
+Ce compte ne peut écrire que dans `bronze/meteo/`, `silver/meteo/` et `gold/meteo/`.
+
 ## Lancer (depuis la racine du dépôt)
 
 ```bash
-# 0. Préparer
-cp partie1_meteo/.env.example .env
-docker compose -f partie1_meteo/docker-compose.minio-local.yml up -d
-docker compose -f partie1_meteo/docker-compose.minio-local.yml build meteo
-docker compose -f partie1_meteo/docker-compose.minio-local.yml run --rm meteo python -m partie1_meteo.init_local
+# Construire l'image Python (une seule fois, ou après un changement de requirements.txt)
+docker compose -f partie1_meteo/docker-compose.yml build meteo
 
 # 1. Stations
-docker compose -f partie1_meteo/docker-compose.minio-local.yml run --rm meteo python -m partie1_meteo.stations
+docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.stations
 
 # 2. Téléchargement parallèle
 #    test rapide :
-docker compose -f partie1_meteo/docker-compose.minio-local.yml run --rm meteo python -m partie1_meteo.telechargement --villes-seulement --limite 3 --annees 2024
-#    les 8 villes :
-docker compose -f partie1_meteo/docker-compose.minio-local.yml run --rm meteo python -m partie1_meteo.telechargement --villes-seulement
+docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.telechargement --villes-seulement --limite 3 --annees 2024
 #    toute la France :
-docker compose -f partie1_meteo/docker-compose.minio-local.yml run --rm meteo python -m partie1_meteo.telechargement
+docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.telechargement
 ```
 
-Console MinIO locale : http://localhost:9101 (minioadmin / minioadmin).
+Relancer le téléchargement est sans risque : les années passées déjà présentes
+dans Bronze sont ignorées, seules les erreurs et l'année en cours sont refaites.
 
-Pour envoyer les données sur le **VPS** : mettre l'URL et les clés du compte
-`meteo` dans `.env`, puis supprimer la ligne `MINIO_ENDPOINT` du service
-`meteo` dans `docker-compose.minio-local.yml`.
+Pour viser le **VPS** : mettre l'URL HTTPS dans `.env`, puis supprimer la ligne
+`MINIO_ENDPOINT` du fichier `docker-compose.yml` de ce dossier.
 
 ## Résultats obtenus (19/11/2026)
 
 - 208 stations françaises actives depuis 2022, dont 21 rattachées aux 8 villes.
 - Toutes les villes ont au moins une station (Paris : 8, dont Orly et Montsouris).
-- 21 stations × 5 ans : 78 fichiers en 1,9 min, 0,48 Go bruts → 0,05 Go en gzip.
+- 21 stations des 8 villes : 81 fichiers en 2,5 min, 0,51 Go bruts → 0,05 Go en gzip.
 
 ## ⚠️ Limite connue : les données s'arrêtent au 24 août 2025
 

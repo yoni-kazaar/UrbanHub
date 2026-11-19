@@ -18,7 +18,6 @@ import os
 import boto3
 import pandas as pd
 from botocore.config import Config
-from botocore.exceptions import ClientError
 from dotenv import find_dotenv, load_dotenv
 
 # ============================================================================
@@ -107,14 +106,3 @@ def lister_cles(s3, bucket: str, prefixe: str) -> list[str]:
     for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefixe):
         cles.extend(obj["Key"] for obj in page.get("Contents", []))
     return cles
-
-
-def creer_buckets_local(s3, buckets: list[str]) -> None:
-    """Crée les buckets manquants. Pour le MinIO LOCAL uniquement :
-    sur le VPS, c'est D qui crée les buckets."""
-    for bucket in buckets:
-        try:
-            s3.head_bucket(Bucket=bucket)
-        except ClientError:
-            s3.create_bucket(Bucket=bucket)
-            print(f"Bucket créé : {bucket}")
