@@ -200,7 +200,7 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ### 2. Traitement
 
-- [ ] Nettoyer et dédoublonner, puis écrire dans `silver/velos/` (une ligne par station et par relevé, avec `latitude` et `longitude`).
+- [x] Nettoyer et dédoublonner, puis écrire dans `silver/velos/` (une ligne par station et par relevé, avec `latitude` et `longitude`).
 - [ ] Calculer le taux d'occupation et produire `gold/velos/velos_ville_heure.parquet`, puis déposer `gold/velos/_SUCCESS`.
 
 ### 3. Analyse
