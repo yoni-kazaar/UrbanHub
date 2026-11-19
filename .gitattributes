@@ -1,0 +1,7 @@
+# Scripts exécutés dans des conteneurs Linux : toujours en fins de ligne Linux
+*.sh   text eol=lf
+
+# Fichiers lus par Docker : même règle par sécurité
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+.env*       text eol=lf

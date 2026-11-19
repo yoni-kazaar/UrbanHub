@@ -17,6 +17,9 @@ MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "")
 MINIO_ACCESS_KEY = os.environ.get("MINIO_ACCESS_KEY", "")
 MINIO_SECRET_KEY = os.environ.get("MINIO_SECRET_KEY", "")
 MINIO_SECURE = os.environ.get("MINIO_SECURE", "false").lower() == "true"
+# true : si MinIO refuse une écriture, le fichier part en secours dans data_lake/ (pratique en dev).
+# false (VPS) : l'erreur remonte, pour ne pas croire que la collecte arrive dans MinIO alors qu'elle n'y est pas.
+SECOURS_LOCAL = os.environ.get("SECOURS_LOCAL", "true").lower() == "true"
 
 # --- Collecte ---
 SOURCE = "pollution"                                   # nom de la source dans le Data Lake
