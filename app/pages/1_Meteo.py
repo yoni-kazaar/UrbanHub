@@ -11,14 +11,14 @@ import donnees  # noqa: F401  (rend common/ importable)
 from common.lake import fs, lire_parquet
 from common.villes import VILLES
 
-st.set_page_config(page_title="Météo – UrbanHub", page_icon="🌦️", layout="wide")
-st.title("🌦️ Météo")
+st.set_page_config(page_title="Météo - UrbanHub", page_icon="🌦️", layout="wide")
+st.title("Météo")
 st.caption("Données horaires Météo-France (data.gouv.fr), toutes les stations de France métropolitaine. "
            "Une ville = moyenne de ses stations à moins de 30 km.")
 
 MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
 LIBELLES_CRITERES = {
-    "chaleur_35c": "Chaleur ≥ 35 °C", "gel_moins5c": "Gel ≤ −5 °C", "pluie_30mm": "Pluie ≥ 30 mm",
+    "chaleur_35c": "Chaleur ≥ 35 °C", "gel_moins5c": "Gel ≤ -5 °C", "pluie_30mm": "Pluie ≥ 30 mm",
     "rafale_100kmh": "Rafales ≥ 100 km/h", "brouillard_200m": "Brouillard < 200 m",
     "chaleur_p99": "Chaleur (1 % des jours les plus chauds)", "froid_p1": "Froid (1 % des plus froids)",
     "pluie_p99": "Pluie (1 % des plus pluvieux)", "rafale_p99": "Rafales (1 % des plus venteux)",
@@ -45,12 +45,12 @@ def resultats():
 
 jours = lire("meteo_ville_jour")
 if jours is None:
-    st.warning("Tables Gold météo pas encore produites : lancer `partie1_meteo.gold` puis `partie1_meteo.analyses`.")
+    st.warning("Tables Gold météo pas encore produites : lancez `partie1_meteo.gold` puis `partie1_meteo.analyses`.")
     st.stop()
 chiffres = resultats() or {}
 jours["jour"] = pd.to_datetime(jours["jour"])
 
-# --- Filtres (barre latérale) ---------------------------------------------
+# --- Filtres (barre latérale) ---
 villes = st.sidebar.multiselect("Villes", list(VILLES), default=list(VILLES))
 debut, fin = jours["jour"].min().date(), jours["jour"].max().date()
 periode = st.sidebar.date_input("Période", (debut, fin), min_value=debut, max_value=fin)
@@ -65,20 +65,18 @@ def filtrer(df, col="jour", ville_col="ville"):
     return df[df[ville_col].isin(villes)] if ville_col in df.columns else df
 
 
-# --- Indicateurs ------------------------------------------------------------
+# --- Indicateurs ---
 j = filtrer(jours)
 stations = lire("meteo_stations")
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Stations en France", f"{len(stations):,}".replace(",", " ") if stations is not None else "–")
+k1.metric("Stations en France", f"{len(stations):,}".replace(",", " ") if stations is not None else "-")
 k2.metric("Jours analysés", f"{j['jour'].nunique():,}".replace(",", " "))
 k3.metric("Température moyenne", f"{j['temperature_moy_c'].mean():.1f} °C")
 k4.metric("Dernier jour disponible", f"{jours['jour'].max():%d/%m/%Y}")
 
-onglets = st.tabs(["📈 Saisons", "⚠️ Périodes anormales", "🌫️ Visibilité", "🔥 Jours extrêmes", "📍 Stations"])
+onglets = st.tabs(["Saisons", "Périodes anormales", "Visibilité", "Jours extrêmes", "Stations"])
 
-# =============================================================================
-# Q3 – Évolution saisonnière
-# =============================================================================
+# --- Q3 : Évolution saisonnière ---
 with onglets[0]:
     st.subheader("Quelle est l'évolution saisonnière de la température, en France et dans les villes ?")
     saisons = lire("analyses/saisons_mois")
@@ -103,7 +101,7 @@ with onglets[0]:
         z = saisons[saisons["zone"] == zone].pivot(index="annee", columns="mois", values="temperature_moy_c")
         z.columns = [MOIS[m - 1] for m in z.columns]
         fig = px.imshow(z, text_auto=".1f", aspect="auto", color_continuous_scale="RdBu_r",
-                        title=f"Température moyenne par mois – {zone}", labels={"color": "°C", "x": "", "y": ""})
+                        title=f"Température moyenne par mois - {zone}", labels={"color": "°C", "x": "", "y": ""})
         st.plotly_chart(fig, width="stretch")
 
     par_zone = chiffres.get("q3_saisons", {}).get("par_zone", {})
@@ -114,17 +112,15 @@ with onglets[0]:
         st.dataframe(tableau, width="stretch", column_config={
             "mois_le_plus_chaud": "Mois le plus chaud", "temperature_mois_chaud_c": st.column_config.NumberColumn("Temp. (°C)", format="%.1f"),
             "mois_le_plus_froid": "Mois le plus froid", "temperature_mois_froid_c": st.column_config.NumberColumn("Temp. (°C)", format="%.1f"),
-            "amplitude_saisonniere_c": st.column_config.NumberColumn("Écart été – hiver (°C)", format="%.1f"),
+            "amplitude_saisonniere_c": st.column_config.NumberColumn("Écart été - hiver (°C)", format="%.1f"),
         })
     st.caption("Cinq ans suffisent pour décrire le cycle des saisons, pas pour mesurer une tendance climatique.")
 
-# =============================================================================
-# Q1 – Périodes anormales
-# =============================================================================
+# --- Q1 : Périodes anormales ---
 with onglets[1]:
     st.subheader("Peut-on identifier des périodes météorologiques anormales ?")
     st.markdown("Pour chaque jour, on compare la température à la **normale** du même jour de l'année "
-                "(moyenne 2022–2026, lissée sur ±7 jours). Une **période anormale** = au moins 3 jours de suite "
+                "(moyenne 2022-2026, lissée sur ±7 jours). Une **période anormale** = au moins 3 jours de suite "
                 "à plus de 2 écarts-types de la normale. En complément, un modèle d'IA (**Isolation Forest**) "
                 "repère les 1 % de jours les plus atypiques en combinant toutes les variables.")
     anomalies = lire("analyses/anomalies_jour")
@@ -164,9 +160,7 @@ with onglets[1]:
         st.plotly_chart(px.bar(x=causes.index, y=causes.values, labels={"x": "", "y": "Nombre de jours"}),
                         width="stretch")
 
-# =============================================================================
-# Q2 – Visibilité
-# =============================================================================
+# --- Q2 : Visibilité ---
 with onglets[2]:
     st.subheader("Existe-t-il une corrélation entre conditions météorologiques et visibilité ?")
     correlations = lire("analyses/visibilite_correlations")
@@ -196,15 +190,13 @@ with onglets[2]:
         b.index = [MOIS[m - 1] for m in b.index]
         fig = px.imshow(b, aspect="auto", color_continuous_scale="Greys",
                         labels={"x": "Heure (Paris)", "y": "", "color": "% des heures"},
-                        title=f"Brouillard (visibilité < 1 km) – {ville_b}")
+                        title=f"Brouillard (visibilité < 1 km) - {ville_b}")
         st.plotly_chart(fig, width="stretch")
 
-# =============================================================================
-# Q4 – Jours extrêmes
-# =============================================================================
+# --- Q4 : Jours extrêmes ---
 with onglets[3]:
     st.subheader("Quels sont les jours présentant des conditions météorologiques extrêmes ?")
-    st.markdown("Deux types de seuils : **absolus** (35 °C, −5 °C, 30 mm de pluie, rafales de 100 km/h, "
+    st.markdown("Deux types de seuils : **absolus** (35 °C, -5 °C, 30 mm de pluie, rafales de 100 km/h, "
                 "brouillard < 200 m) et **relatifs** à chaque ville (le 1 % des jours les plus extrêmes).")
     extremes = lire("analyses/jours_extremes")
     extremes["jour"] = pd.to_datetime(extremes["jour"])
@@ -223,13 +215,13 @@ with onglets[3]:
     fig = px.density_heatmap(cal, x="semaine", y="annee", z="nb_criteres", histfunc="max", nbinsx=53,
                              color_continuous_scale="OrRd", labels={"semaine": "Semaine de l'année", "annee": "",
                                                                     "nb_criteres": "Critères"},
-                             title=f"Calendrier des jours extrêmes – {ville_e}")
+                             title=f"Calendrier des jours extrêmes - {ville_e}")
     fig.update_yaxes(type="category")
     st.plotly_chart(fig, width="stretch")
 
     top = e[e["ville"] == ville_e].sort_values(["nb_criteres", "jour"], ascending=[False, False]).head(10).copy()
     top["criteres"] = top["criteres"].map(lambda t: ", ".join(LIBELLES_CRITERES.get(c, c) for c in t.split(", ")))
-    st.markdown(f"**Les 10 jours les plus extrêmes – {ville_e}**")
+    st.markdown(f"**Les 10 jours les plus extrêmes - {ville_e}**")
     st.dataframe(top[["jour", "criteres", "temperature_min_c", "temperature_max_c", "precipitation_mm",
                       "rafale_max_ms", "visibility_min_m"]], hide_index=True, width="stretch", column_config={
         "jour": st.column_config.DateColumn("Jour", format="DD/MM/YYYY"), "criteres": "Critères",
@@ -240,9 +232,7 @@ with onglets[3]:
         "visibility_min_m": st.column_config.NumberColumn("Visibilité min (m)", format="%.0f"),
     })
 
-# =============================================================================
-# Carte des stations
-# =============================================================================
+# --- Carte des stations ---
 with onglets[4]:
     st.subheader("Stations météo")
     if stations is not None:

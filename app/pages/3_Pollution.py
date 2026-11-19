@@ -11,8 +11,8 @@ import streamlit as st
 from donnees import exiger
 from common.lake import lire_parquet
 
-st.set_page_config(page_title="Pollution – UrbanHub", page_icon="🌫️", layout="wide")
-st.title("🌫️ Pollution de l'air")
+st.set_page_config(page_title="Pollution - UrbanHub", page_icon="🌫️", layout="wide")
+st.title("Pollution de l'air")
 
 POLLUANTS = ["pm25", "pm10", "no2", "o3", "co"]
 NOMS = {"pm25": "PM2.5", "pm10": "PM10", "no2": "NO2", "o3": "O3", "co": "CO"}
@@ -49,7 +49,7 @@ pollution = exiger("pollution")
 capteurs = charger_capteurs()
 derniere_heure = pollution["heure_locale"].max()
 
-# ----------------------------------------------------------------------------- filtres
+# --- filtres ---
 st.sidebar.header("Pollution")
 ville = st.sidebar.selectbox("Ville", VILLES, index=0)
 polluant = st.sidebar.selectbox("Polluant", POLLUANTS, format_func=NOMS.get, index=0)
@@ -67,7 +67,7 @@ jours_p = jours[jours.index >= debut.tz_localize(None).normalize()]
 st.caption(f"Capteurs OpenAQ (flux IoT) · données jusqu'au {derniere_heure:%d/%m/%Y à %H h} (heure de Paris) · "
            f"seuils : lignes directrices de l'OMS 2021")
 
-# ----------------------------------------------------------------------------- dernières mesures
+# --- dernières mesures ---
 st.subheader(f"{ville} : dernières mesures")
 for col, p in zip(st.columns(len(POLLUANTS)), POLLUANTS):
     serie = g_ville.dropna(subset=[p])
@@ -78,7 +78,7 @@ for col, p in zip(st.columns(len(POLLUANTS)), POLLUANTS):
     col.metric(NOMS[p], f"{derniere[p]:.0f} µg/m³", f"{derniere[p] / OMS_JOUR[p]:.1f} × seuil OMS", delta_color="inverse",
                help=f"Mesure du {derniere['heure_locale']:%d/%m à %H h}. Seuil OMS 24 h : {OMS_JOUR[p]} µg/m³.")
 
-# ----------------------------------------------------------------------------- alertes
+# --- alertes ---
 st.subheader("Alertes de dépassement")
 veille = jours.dropna(how="all").tail(1)
 if veille.empty:
@@ -113,8 +113,8 @@ with col_liste:
                                     "valeur": st.column_config.NumberColumn("valeur (µg/m³)", format="%.1f"),
                                     "× seuil": st.column_config.NumberColumn(format="%.1f")})
 
-# ----------------------------------------------------------------------------- carte des capteurs
-st.subheader(f"Carte des capteurs – {NOMS[polluant]} (moyenne des 7 derniers jours)")
+# --- carte des capteurs ---
+st.subheader(f"Carte des capteurs - {NOMS[polluant]} (moyenne des 7 derniers jours)")
 if capteurs is None:
     st.info("Table des capteurs pas encore publiée (gold/pollution/capteurs_pollution.parquet).")
 else:
@@ -139,8 +139,8 @@ else:
         fig.update_layout(map_style="open-street-map", margin=dict(l=0, r=0, t=0, b=0), legend_title_text="")
         st.plotly_chart(fig, width="stretch")
 
-# ----------------------------------------------------------------------------- courbe sur 24 h
-st.subheader(f"{ville} – {NOMS[polluant]} au cours de la journée ({periode.lower()})")
+# --- courbe sur 24 h ---
+st.subheader(f"{ville} - {NOMS[polluant]} au cours de la journée ({periode.lower()})")
 profil = g_periode.dropna(subset=[polluant])
 if profil.empty:
     st.info(f"{NOMS[polluant]} n'est pas mesuré à {ville} sur cette période.")
@@ -153,8 +153,8 @@ else:
     fig.update_xaxes(dtick=2)
     st.plotly_chart(fig, width="stretch")
 
-# ----------------------------------------------------------------------------- évolution jour par jour
-st.subheader(f"{ville} – {NOMS[polluant]} jour par jour")
+# --- évolution jour par jour ---
+st.subheader(f"{ville} - {NOMS[polluant]} jour par jour")
 evol = jours_p[polluant].dropna()
 if evol.empty:
     st.info("Pas de données journalières sur cette période.")
@@ -164,8 +164,8 @@ else:
                   annotation_text=f"seuil OMS 24 h ({OMS_JOUR[polluant]})")
     st.plotly_chart(fig, width="stretch")
 
-# ----------------------------------------------------------------------------- comparaison des villes
-st.subheader(f"Comparaison des villes – {NOMS[polluant]} moyen ({periode.lower()})")
+# --- comparaison des villes ---
+st.subheader(f"Comparaison des villes - {NOMS[polluant]} moyen ({periode.lower()})")
 comp = (pollution[pollution["heure_locale"] >= debut].groupby("ville")[polluant].mean()
         .reindex(VILLES).dropna().sort_values().reset_index())
 if not comp.empty:

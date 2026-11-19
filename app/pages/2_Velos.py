@@ -6,11 +6,11 @@ from donnees import charger  # ajoute aussi la racine du dépôt au chemin Pytho
 from partie2_velos import analyse
 from partie2_velos.gold import lire_silver
 
-st.set_page_config(page_title="Vélos – UrbanHub", page_icon="🚲", layout="wide")
-st.title("🚲 Vélos en libre-service")
+st.set_page_config(page_title="Vélos - UrbanHub", page_icon="🚲", layout="wide")
+st.title("Vélos en libre-service")
 
 
-@st.cache_data(ttl=600, show_spinner="Chargement des relevés (Silver)…")
+@st.cache_data(ttl=600, show_spinner="Chargement des relevés (Silver)...")
 def donnees_silver():
     return analyse.preparer(lire_silver())
 
@@ -18,14 +18,14 @@ def donnees_silver():
 try:
     df = donnees_silver()
 except (Exception, SystemExit) as e:
-    st.warning(f"Table Silver indisponible ({e}). Lance `python -m partie2_velos.silver` puis recharge la page.")
+    st.warning(f"Table Silver indisponible ({e}). Lancez `python -m partie2_velos.silver` puis rechargez la page.")
     st.stop()
 
 villes = sorted(df["ville"].unique())
 choix = st.sidebar.multiselect("Villes", villes, default=villes)
 df = df[df["ville"].isin(choix)]
 if df.empty:
-    st.info("Choisis au moins une ville.")
+    st.info("Choisissez au moins une ville.")
     st.stop()
 
 debut, fin = df["timestamp"].min().tz_convert("Europe/Paris"), df["timestamp"].max().tz_convert("Europe/Paris")
@@ -33,7 +33,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("Stations", f"{df['station_id'].nunique():,}")
 c2.metric("Relevés", f"{df['timestamp'].nunique():,}")
 c3.metric("Occupation moyenne", f"{df['taux'].mean():.0%}")
-c4.metric("Période", f"{debut:%d/%m %H:%M} → {fin:%H:%M}")
+c4.metric("Période", f"{debut:%d/%m %H:%M} -> {fin:%H:%M}")
 st.caption("Marseille est exclue : son réseau (LeVélo) annonce 0 vélo dans toutes ses stations, donc aucune disponibilité réelle. "
            "Les données commencent au lancement du collecteur : l'API ne donne pas d'historique.")
 
@@ -92,7 +92,7 @@ st.plotly_chart(px.bar(deseq, x="ville", y="taux_moyen", color="zone", barmode="
 
 # --- Q5 ---
 st.subheader("Stations critiques à rééquilibrer")
-seuil = st.slider("Une station est critique si elle est vide ou pleine plus de … du temps", 0.1, 0.9, analyse.SEUIL_CRITIQUE, 0.05)
+seuil = st.slider("Une station est critique si elle est vide ou pleine plus de ... du temps", 0.1, 0.9, analyse.SEUIL_CRITIQUE, 0.05)
 critiques = analyse.stations_critiques(df, seuil=seuil)
 st.write(f"**{len(critiques)}** stations critiques sur {df['station_id'].nunique():,}.")
 st.dataframe(critiques[["ville", "station_name", "probleme", "part_vide", "part_pleine", "capacite", "releves"]].head(200),
@@ -104,7 +104,7 @@ k = st.slider("Nombre de groupes", 2, 8, 4)
 try:
     stations, centres = analyse.profils_kmeans(df, k=k)
 except ValueError as e:
-    st.info(f"Pas encore assez de données : {e} Relance Silver et Gold quand la collecte couvre plusieurs heures.")
+    st.info(f"Pas encore assez de données : {e} Relancez Silver et Gold quand la collecte couvre plusieurs heures.")
 else:
     profil = centres.drop(columns="stations").reset_index().melt(id_vars="cluster", var_name="heure_paris", value_name="remplissage")
     profil["cluster"] = profil["cluster"].astype(str)

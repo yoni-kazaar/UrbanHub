@@ -1,12 +1,10 @@
-"""Remplaçant PROVISOIRE de `common/` (villes et accès MinIO).
+"""Version provisoire de `common/` (villes et accès MinIO) pour la partie météo.
 
-Le contrat prévoit que D fournisse `common/villes.py` et `common/lake.py`.
-En attendant, ce fichier reprend les mêmes règles pour que la partie météo
-avance sans attendre. Quand `common/` sera livré :
-  1. vérifier que les coordonnées des villes sont identiques ;
-  2. remplacer les imports `from partie1_meteo.provisoire import ...`
-     par ceux de `common` ;
-  3. supprimer ce fichier.
+Écrit avant que `common/` soit disponible, pour ne pas bloquer la partie météo.
+Les villes et la règle des 30 km sont les mêmes que dans `common/villes.py`.
+L'accès MinIO passe ici par boto3 (et non s3fs comme `common/lake.py`).
+Plus tard : remplacer les imports `from partie1_meteo.provisoire import ...`
+par ceux de `common`, puis supprimer ce fichier.
 """
 
 from __future__ import annotations
@@ -20,9 +18,7 @@ import pandas as pd
 from botocore.config import Config
 from dotenv import find_dotenv, load_dotenv
 
-# ============================================================================
-# Villes (futur common/villes.py)
-# ============================================================================
+# --- Villes (futur common/villes.py) ---
 
 # Centre de chaque ville (hôtel de ville), en degrés décimaux.
 VILLES: dict[str, tuple[float, float]] = {
@@ -59,9 +55,7 @@ def rattacher_ville(latitude: float, longitude: float) -> str | None:
     return meilleure
 
 
-# ============================================================================
-# Accès MinIO (futur common/lake.py)
-# ============================================================================
+# --- Accès MinIO (futur common/lake.py) ---
 
 load_dotenv(find_dotenv(usecwd=True))
 

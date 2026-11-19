@@ -16,7 +16,7 @@ from . import config
 class OpenAQ:
     def __init__(self, api_key=config.OPENAQ_API_KEY, pause_s=1.1, essais=5):
         if not api_key:
-            raise RuntimeError("OPENAQ_API_KEY manquante : ajoute-la dans le fichier .env")
+            raise RuntimeError("OPENAQ_API_KEY manquante : à ajouter dans le fichier .env")
         self.session = requests.Session()
         self.session.headers.update({"X-API-Key": api_key, "Accept": "application/json"})
         self.pause_s = pause_s      # 1,1 s entre deux appels -> moins de 60 appels par minute

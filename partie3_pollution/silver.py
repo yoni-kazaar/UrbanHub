@@ -1,24 +1,24 @@
 """
-Étape 4 – Nettoyage : Bronze -> Silver (Parquet), en INCRÉMENTAL.
+Étape 4 : nettoyage incrémental (Bronze -> Silver, Parquet).
 
-À chaque passage, on ne traite que les fichiers Bronze NOUVEAUX
+À chaque passage, on ne traite que les nouveaux fichiers Bronze
 (la liste des fichiers déjà traités est dans etat/silver_fait.txt).
 Les jours touchés par ces nouveaux fichiers sont fusionnés avec le Silver existant.
-=> un passage ne relit plus tout le Bronze : quelques secondes au lieu de plusieurs minutes.
+Un passage ne relit donc plus tout le Bronze : quelques secondes au lieu de plusieurs minutes.
 
 1. Lit les nouveaux fichiers bruts de bronze/pollution/ :
    - collecte  (pollution_*.json)  : dernières mesures, champ datetime.utc
    - historique (historique_*.json): moyennes horaires, champ period.datetimeTo.utc
-     (on prend la FIN de la période, comme la date des dernières mesures)
+     (on prend la fin de la période, comme la date des dernières mesures)
 2. Ajoute les infos du capteur (polluant, unité, ville, position) depuis le catalogue.
 3. Nettoie :
    - unités : ppb / ppm -> µg/m³ (à 25 °C) ; en France tout est déjà en µg/m³ ;
    - valeurs impossibles : vides, négatives ou au-dessus d'un plafond réaliste ;
    - doublons : une seule ligne par capteur et par date de mesure
      (le collecteur passe toutes les 15 min, les stations publient 1 fois par heure) ;
-   - mesures périmées : l'API « latest » renvoie la DERNIÈRE valeur connue d'un capteur,
+   - mesures périmées : l'API 'latest' renvoie la dernière valeur connue d'un capteur,
      même s'il est en panne depuis des années. Une valeur collectée plus de 48 h après
-     sa date de mesure n'est pas « en direct » : on l'écarte.
+     sa date de mesure n'est pas 'en direct' : on l'écarte.
 4. Écrit un fichier Parquet par jour : silver/pollution/year=AAAA/month=MM/day=JJ/pollution_AAAAMMJJ.parquet
 
 Lancement :
@@ -139,7 +139,7 @@ def main(complet=False):
     print("Stockage :", lac.mode(), flush=True)
     cat = charger_catalogue()
     if not cat:
-        raise RuntimeError("Catalogue introuvable : lance d'abord le collecteur ou decouverte_capteurs.")
+        raise RuntimeError("Catalogue introuvable : lancer d'abord le collecteur ou decouverte_capteurs.")
     capteurs = pd.DataFrame(cat["capteurs"]).rename(columns={"unit": "unit_origine"})
 
     config.DOSSIER_ETAT.mkdir(parents=True, exist_ok=True)
