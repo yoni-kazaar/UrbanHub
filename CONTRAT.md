@@ -116,10 +116,10 @@ Les trois tables n'ont pas la même durée : la météo couvre 5 ans, les vélos
 
 | Compte MinIO | Peut écrire dans | Peut lire |
 | --- | --- | --- |
-| `meteo` (A) | `bronze/meteo/`, `silver/meteo/`, `gold/meteo/` | `gold/` |
-| `velos` (B) | `bronze/velos/`, `silver/velos/`, `gold/velos/` | `gold/` |
-| `pollution` (C) | `bronze/pollution/`, `silver/pollution/`, `gold/pollution/` | `gold/` |
-| `croise` (D) | `gold/croise/` | tout |
+| `urbanhub-meteo` (A) | `bronze/meteo/`, `silver/meteo/`, `gold/meteo/` | `gold/` |
+| `urbanhub-velos` (B) | `bronze/velos/`, `silver/velos/`, `gold/velos/` | `gold/` |
+| `urbanhub-pollution` (C) | `bronze/pollution/`, `silver/pollution/`, `gold/pollution/` | `gold/` |
+| `urbanhub-croise` (D) | `gold/croise/` | tout |
 
 - **Bronze ne se modifie jamais** : chaque relevé est un nouveau fichier horodaté (`velos_20261119T140000Z.json`).
 - **Silver et Gold** peuvent être réécrits, uniquement par leur propriétaire.
