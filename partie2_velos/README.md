@@ -82,6 +82,28 @@ PYTHONPATH=. python -m partie2_velos.silver --tout              # tous les jours
 
 Nettoyage : lignes sans position ou sans compteurs écartées, valeurs négatives écartées, doublons (réseau, station, relevé) supprimés. Les stations hors service sont **conservées** avec `en_service = False` : à filtrer dans les analyses et dans Gold.
 
+## Gold (`gold.py`)
+
+Résume Silver en **une ligne par ville et par heure (UTC)**, au format du contrat :
+
+```bash
+PYTHONPATH=. python -m partie2_velos.gold
+```
+
+Sortie : `gold/velos/velos_ville_heure.parquet`, puis le fichier vide `gold/velos/_SUCCESS` (publiés par `lake.publier_gold`, qui valide le contrat avant d'écrire).
+
+| Colonne | Calcul |
+| --- | --- |
+| `ville`, `heure` | clé de la table (`heure` arrondie à l'heure, UTC) |
+| `bikes_available` | vélos disponibles : moyenne par station sur l'heure, puis moyenne des stations de la ville |
+| `free_slots` | places libres, même calcul |
+| `taux_occupation` | `bikes_available / (bikes_available + free_slots)`, entre 0 et 1 |
+
+- Les stations **hors service** et celles **hors des 8 villes** sont exclues.
+- Chaque station pèse pareil dans la moyenne de la ville.
+- **Marseille (LeVélo) annonce 0 vélo dans toutes ses stations** à tous les relevés : le réseau ne publie pas la disponibilité réelle. Ce 0 n'est pas une mesure, donc `bikes_available` et `taux_occupation` sont mis à `null` pour Marseille (règle du contrat : jamais 0 à la place d'une valeur absente). `free_slots` reste renseigné. À signaler dans le rapport.
+- Une heure sans relevé n'a pas de ligne.
+
 ## Suite de la partie
 
-`gold.py` (table `gold/velos/velos_ville_heure.parquet`), `analyse.py` et la page `app/pages/2_Velos.py` : voir les tâches de B dans [Personne.md](../Personne.md).
+`analyse.py` et la page `app/pages/2_Velos.py` : voir les tâches de B dans [Personne.md](../Personne.md).
