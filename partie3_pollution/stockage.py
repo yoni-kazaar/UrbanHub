@@ -60,6 +60,8 @@ class Lac:
                                        content_type=content_type)
                 return f"s3://{bucket}/{chemin}"
             except Exception as e:  # MinIO arrêté, réseau coupé, droits...
+                if not config.SECOURS_LOCAL:
+                    raise
                 print(f"  [MinIO indisponible : {e}] -> écriture de secours en local", flush=True)
         return self._ecrire_local(bucket, chemin, data)
 

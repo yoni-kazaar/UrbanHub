@@ -1,0 +1,42 @@
+# Conteneur Python de la partie météo.
+#
+# MinIO n'est PAS ici : c'est celui de infra/ (Yoni), à démarrer d'abord :
+#   docker compose -f infra/docker-compose.yml up -d minio
+#
+# Lancer un script (depuis la racine du dépôt) :
+#   docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.stations
+#
+# Identifiants : ceux du .env à la racine (compte urbanhub-meteo).
+services:
+  meteo:
+    build:
+      context: ..
+      dockerfile: partie1_meteo/Dockerfile
+    env_file: ../.env
+    environment:
+      # Dans un conteneur, "localhost" désigne le conteneur lui-même :
+      # on vise donc le MinIO du PC hôte. Pour le VPS, supprimer cette ligne
+      # et mettre l'URL HTTPS dans le .env.
+      MINIO_ENDPOINT: http://host.docker.internal:9000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # nécessaire sous Linux
+    volumes:
+      - ..:/app
+
+  # Application Streamlit de l'équipe, lancée dans Docker :
+  #   docker compose -f partie1_meteo/docker-compose.yml up -d app   →  http://localhost:8501
+  app:
+    build:
+      context: ..
+      dockerfile: partie1_meteo/Dockerfile.app
+    profiles: ["app"]
+    command: streamlit run app/Accueil.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+    env_file: ../.env
+    environment:
+      MINIO_ENDPOINT: http://host.docker.internal:9000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - ..:/app

@@ -1,13 +1,7 @@
-"""
-Référentiel commun des 8 villes UrbanHub (CONTRAT.md).
-
-Un seul fichier de coordonnées pour tout le projet : personne n'utilise
-d'autres centres de villes. Fonction commune : rattacher_ville().
-"""
-
+"""Les 8 villes du projet, leurs centres, et le rattachement d'une station à une ville (voir CONTRAT.md)."""
 from math import asin, cos, radians, sin, sqrt
 
-# Centre de chaque ville (latitude, longitude) en degrés décimaux
+# Centre de chaque ville (latitude, longitude). Seule référence autorisée par le contrat.
 VILLES = {
     "Paris": (48.8566, 2.3522),
     "Lyon": (45.7640, 4.8357),
@@ -19,26 +13,22 @@ VILLES = {
     "Strasbourg": (48.5734, 7.7521),
 }
 
-RAYON_KM = 30  # règle du contrat
+RAYON_KM = 30
 
 
 def distance_km(lat1, lon1, lat2, lon2):
-    """Distance à vol d'oiseau entre deux points (formule de haversine)."""
+    """Distance à vol d'oiseau (formule de haversine)."""
     lat1, lon1, lat2, lon2 = map(radians, (lat1, lon1, lat2, lon2))
     a = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2
     return 2 * 6371 * asin(sqrt(a))
 
 
-def rattacher_ville(latitude, longitude, rayon_km=RAYON_KM):
-    """
-    Renvoie la ville du contrat la plus proche si elle est à moins de rayon_km,
-    sinon None (qui deviendra null dans les fichiers Parquet).
+def rattacher_ville(latitude, longitude):
+    """Ville la plus proche à moins de 30 km de son centre, sinon None.
+
+    Sur un DataFrame : df["ville"] = [rattacher_ville(la, lo) for la, lo in zip(df.latitude, df.longitude)]
     """
     if latitude is None or longitude is None:
         return None
-    meilleure, d_min = None, None
-    for ville, (lat_c, lon_c) in VILLES.items():
-        d = distance_km(latitude, longitude, lat_c, lon_c)
-        if d <= rayon_km and (d_min is None or d < d_min):
-            meilleure, d_min = ville, d
-    return meilleure
+    ville, d = min(((v, distance_km(latitude, longitude, *c)) for v, c in VILLES.items()), key=lambda x: x[1])
+    return ville if d <= RAYON_KM else None
