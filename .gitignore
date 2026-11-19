@@ -1,5 +1,21 @@
+# Secrets : jamais sur GitHub
 .env
+.env.*
 .env.prod
-__pycache__/
+!.env.example
+
+# Environnements Python
 .venv/
+venv/
+__pycache__/
+*.pyc
+
+# Données : elles vont dans MinIO, jamais dans Git
+data/
 *.parquet
+*.csv.gz
+logs/
+
+# Éditeurs
+.vscode/
+.idea/

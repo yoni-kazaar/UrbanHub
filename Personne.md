@@ -22,7 +22,7 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 
 | Personne | Partie | Source | Table Gold | Page Streamlit |
 | :---: | --- | --- | --- | --- |
-| **A** | Météo – batch | NOAA Global Hourly | `gold/meteo/meteo_ville_heure.parquet` | `1_Meteo.py` |
+| **A** | Météo – batch | Météo-France (horaire) | `gold/meteo/meteo_ville_heure.parquet` | `1_Meteo.py` |
 | **B** | Vélos – streaming | API CityBikes | `gold/velos/velos_ville_heure.parquet` | `2_Velos.py` |
 | **C** | Pollution – IoT | API OpenAQ | `gold/pollution/pollution_ville_heure.parquet` | `3_Pollution.py` |
 | **D** | Plateforme et analyse croisée | Les 3 tables Gold | – | `Accueil.py`, `4_Croisee.py` |
@@ -36,7 +36,7 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 ## Architecture
 
 ```
-Sources (NOAA, CityBikes, OpenAQ)
+Sources (Météo-France, CityBikes, OpenAQ)
       │  ingestion : scripts Python (collecteurs pour B et C)
       ▼
 MinIO – Data Lake         bronze → silver → gold (Parquet)
@@ -147,38 +147,38 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 
 
-## Personne A – Météo (flux batch, NOAA)
+## Personne A – Météo (flux batch, Météo-France)
 
 **Dossier :** `partie1_meteo/` · **Compte MinIO :** `urbanhub-meteo`
 
-> ⚠️ **À vérifier avant de lancer :** 5 ans de données pour toute la France représentent plusieurs Go. Vérifier avec D l'espace disque libre sur le VPS.
+> ℹ️ **Source :** [données climatologiques de base horaires de Météo-France](https://www.data.gouv.fr/fr/datasets/donnees-climatologiques-de-base-horaires/), à la place de NOAA Global Hourly (arrêté le 24/08/2025), avec l'accord du professeur. Volume : environ 3,5 Go compressés pour la métropole.
 
 ### 1. Collecte
 
-- [ ] Récupérer la liste des stations NOAA et garder les stations françaises.
-- [ ] Écrire un script qui télécharge **en parallèle** les fichiers des 5 dernières années et les dépose dans `bronze/meteo/`.
-- [ ] Lancer le script à la main depuis sa machine (aucun conteneur permanent nécessaire).
+- [x] Écrire un script qui télécharge **en parallèle** les fichiers départementaux des 5 dernières années et les dépose dans `bronze/meteo/`.
+- [x] Construire la liste des stations françaises et les rattacher aux 8 villes.
+- [ ] Relancer le téléchargement juste avant le gel de la collecte, pour avoir les derniers jours.
 
 ### 2. Traitement
 
-- [ ] Décoder les champs : température, vent (vitesse et direction), pression, visibilité, précipitations. Les valeurs `+9999` signifient « manquant ».
-- [ ] Nettoyer (valeurs manquantes, unités, heure en UTC) et écrire dans `silver/meteo/` en gardant **toutes** les stations françaises (avec `latitude` et `longitude`).
-- [ ] Rattacher chaque station à sa ville (`common.villes.rattacher_ville`), puis produire `gold/meteo/meteo_ville_heure.parquet` et déposer `gold/meteo/_SUCCESS`.
+- [x] Filtrer selon les codes qualité Météo-France, gérer les valeurs manquantes et convertir `AAAAMMJJHH` en `timestamp` UTC (température, vent, pression, visibilité, précipitations).
+- [x] Nettoyer (valeurs manquantes, unités, heure en UTC) et écrire dans `silver/meteo/` en gardant **toutes** les stations françaises (avec `latitude` et `longitude`).
+- [x] Rattacher chaque station à sa ville (`common.villes.rattacher_ville`), puis produire `gold/meteo/meteo_ville_heure.parquet` et déposer `gold/meteo/_SUCCESS`.
 
 ### 3. Analyse
 
-- [ ] Répondre aux 4 questions métier :
+- [x] Répondre aux 4 questions métier :
   1. Périodes météorologiques anormales
   2. Lien entre météo et visibilité
   3. Évolution saisonnière de la température, en France et dans les 8 villes
   4. Jours extrêmes
-- [ ] **IA :** détecter les anomalies (Isolation Forest ou z-score).
+- [x] **IA :** détecter les anomalies (Isolation Forest ou z-score).
 
 ### 4. Livrables
 
-- [ ] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
-- [ ] Partie du rapport
-- [ ] Vidéo de démo
+- [x] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
+- [x] Partie du rapport ([partie1_meteo/RAPPORT.md](partie1_meteo/RAPPORT.md))
+- [x] Séquence météo pour la vidéo de présentation de l'équipe (script : [partie1_meteo/VIDEO.md](partie1_meteo/VIDEO.md))
 
 ---
 
