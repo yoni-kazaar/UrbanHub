@@ -11,7 +11,24 @@ Toute modification du contrat doit être validée par les 4 membres de l'équipe
 | A | 1 – Météo | NOAA Global Hourly | Batch (5 dernières années) |
 | B | 2 – Vélos | API CityBikes | Streaming (toutes les 2-3 min) |
 | C | 3 – Pollution | API OpenAQ | IoT (ingestion régulière) |
-| D | 4 – Analyse croisée et interface | Les 3 tables Gold | Jointure |
+| D | 4 – Plateforme et analyse croisée | Les 3 tables Gold | Jointure |
+
+Le détail des tâches est dans [Personne.md](Personne.md).
+
+## Architecture
+
+```
+Sources (NOAA, CityBikes, OpenAQ)
+      │  ingestion
+      ▼
+MinIO – Data Lake              bronze → silver → gold (Parquet)
+      │  chargement des tables Gold
+      ▼
+PostgreSQL – Data Warehouse    un schéma par partie
+      │
+      ▼
+Grafana – indicateurs urbains  un tableau de bord par partie
+```
 
 ## Règles communes
 
@@ -89,29 +106,70 @@ Chacun reste libre de produire d'autres tables pour ses propres analyses.
 
 Une valeur absente est laissée vide (`null`), jamais remplacée par 0.
 
+## Règles d'écriture dans MinIO
+
+| Compte MinIO | Peut écrire dans | Peut lire |
+| --- | --- | --- |
+| `meteo` (A) | `bronze/meteo/`, `silver/meteo/`, `gold/meteo/` | `gold/` |
+| `velos` (B) | `bronze/velos/`, `silver/velos/`, `gold/velos/` | `gold/` |
+| `pollution` (C) | `bronze/pollution/`, `silver/pollution/`, `gold/pollution/` | `gold/` |
+| `croise` (D) | `gold/croise/` | tout |
+
+- **Bronze ne se modifie jamais** : chaque relevé est un nouveau fichier horodaté (`velos_20261119T140000Z.json`).
+- **Silver et Gold** peuvent être réécrits, uniquement par leur propriétaire.
+- **Une table Gold est prête** quand son propriétaire a déposé un fichier vide `gold/<source>/_SUCCESS`.
+- Le bucket `gold` a le **versioning activé**.
+
+## Data Warehouse : PostgreSQL
+
+Chaque table Gold est chargée dans PostgreSQL, dans le schéma de sa partie, avec le même nom et les mêmes colonnes que dans MinIO.
+
+| Schéma | Propriétaire | Tables |
+| --- | --- | --- |
+| `meteo` | A | `meteo.meteo_ville_heure` |
+| `velos` | B | `velos.velos_ville_heure` |
+| `pollution` | C | `pollution.pollution_ville_heure` |
+| `croise` | D | Vues SQL qui joignent les 3 tables sur `ville` + `heure` |
+
+Chacun écrit uniquement dans son schéma. Les autres schémas sont en lecture seule.
+
+## Interface : Grafana
+
+- Un tableau de bord par partie : **Météo** (A), **Vélos** (B), **Pollution** (C), **Accueil** et **Analyse croisée** (D).
+- Chaque tableau de bord lit PostgreSQL et est exporté en JSON dans `partieX_xxx/grafana/`.
+
+## Infrastructure : VPS
+
+- Tous les services tournent sur le VPS avec Docker, reliés par le réseau Docker externe `urbanhub`.
+- Un `docker-compose.yml` par partie : chacun déploie et redémarre ses conteneurs sans toucher à ceux des autres.
+- Seul Grafana est exposé sur Internet, en HTTPS via Caddy. MinIO et PostgreSQL sont accessibles par tunnel SSH uniquement.
+
 ## Organisation du dépôt
 
 Un dossier par partie : chacun travaille dans le sien, ce qui évite les conflits.
 
 ```
 UrbanHub/
-├── CONTRAT.md                # ce fichier
-├── docker-compose.yml        # MinIO + application Streamlit
-├── .env.example              # variables attendues, sans valeurs secrètes
-├── partie1_meteo/
-├── partie2_velos/
-├── partie3_pollution/
-├── partie4_croisee/
-└── app/                      # interface Streamlit
-    ├── Accueil.py            # Partie 4
-    └── pages/
-        ├── 1_Meteo.py        # Partie 1
-        ├── 2_Velos.py        # Partie 2
-        ├── 3_Pollution.py    # Partie 3
-        └── 4_Croisee.py      # Partie 4
+├── CONTRAT.md                  # ce fichier
+├── Personne.md                 # tâches de chaque personne
+├── .env.example                # variables attendues, sans valeurs secrètes
+├── infra/                      # D : MinIO, PostgreSQL, Grafana, Caddy
+│   └── docker-compose.yml
+├── partie1_meteo/              # A
+│   ├── docker-compose.yml
+│   └── grafana/
+├── partie2_velos/              # B
+│   ├── docker-compose.yml
+│   └── grafana/
+├── partie3_pollution/          # C
+│   ├── docker-compose.yml
+│   └── grafana/
+└── partie4_croisee/            # D
+    └── grafana/
 ```
 
 ## Secrets
 
-- Les clés et mots de passe (clé OpenAQ, identifiants MinIO) vont dans un fichier `.env`, **jamais commité**.
+- Les clés et mots de passe (clé OpenAQ, comptes MinIO, comptes PostgreSQL) vont dans un fichier `.env`, **jamais commité**.
 - Le fichier `.env.example` liste les variables attendues, sans leur valeur.
+- Chaque personne n'utilise que son propre compte MinIO et PostgreSQL.
