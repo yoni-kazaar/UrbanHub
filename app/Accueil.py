@@ -14,8 +14,8 @@ meteo, velos, pollution = charger("meteo"), charger("velos"), charger("pollution
 
 def dernier(df, cols):
     """Dernière valeur connue par ville pour les colonnes demandées."""
-    if df is None:
-        return pd.DataFrame({"ville": list(VILLES)})
+    if df is None:  # table pas encore publiée : colonnes vides pour que la carte et le tableau s'affichent quand même
+        return pd.DataFrame({"ville": list(VILLES)} | {c: float("nan") for c in cols})
     return df.sort_values("heure").groupby("ville")[cols].last().reset_index()
 
 
@@ -26,7 +26,9 @@ villes = (villes.merge(dernier(meteo, ["temperature_c", "wind_speed_ms"]), on="v
 
 col_carte, col_kpi = st.columns([3, 2])
 with col_carte:
-    indicateur = st.radio("Couleur de la carte", ["pm25", "temperature_c", "taux_occupation"], horizontal=True,
+    # On ne propose que les indicateurs dont la table est publiée.
+    choix = [c for c in ["pm25", "temperature_c", "taux_occupation"] if villes[c].notna().any()] or ["temperature_c"]
+    indicateur = st.radio("Couleur de la carte", choix, horizontal=True,
                           format_func={"pm25": "PM2.5", "temperature_c": "Température", "taux_occupation": "Occupation vélos"}.get)
     fig = px.scatter_map(villes, lat="latitude", lon="longitude", color=indicateur, hover_name="ville",
                          hover_data={c: ":.1f" for c in ["temperature_c", "pm25", "no2"]} | {"taux_occupation": ":.0%", "latitude": False, "longitude": False},
