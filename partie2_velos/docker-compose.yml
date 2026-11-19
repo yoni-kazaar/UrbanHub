@@ -1,0 +1,7 @@
+services:
+  collecte-velos:
+    build:
+      context: ..
+      dockerfile: partie2_velos/Dockerfile
+    env_file: .env
+    restart: always
