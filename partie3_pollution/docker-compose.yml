@@ -1,0 +1,53 @@
+# Partie 3 – Pollution (Personne C)
+#
+# Tout lancer (collecteur + pipeline) :  docker compose up -d --build
+# Avec un MinIO local de dev :           docker compose --profile local up -d --build
+# Suivre les logs :                      docker compose logs -f collecteur-pollution
+#                                        docker compose logs -f pipeline-pollution
+
+services:
+
+  # 1. Collecte : toutes les 15 min, dépose les relevés bruts dans bronze/pollution/
+  collecteur-pollution:
+    build:
+      context: ..                          # racine du dépôt, pour copier common/
+      dockerfile: partie3_pollution/Dockerfile
+    container_name: collecteur-pollution
+    env_file: ../.env                      # OPENAQ_API_KEY, MINIO_* (jamais commité)
+    volumes:
+      - ./etat:/app/partie3_pollution/etat            # catalogue des capteurs
+      - ./data_lake:/app/partie3_pollution/data_lake  # Data Lake local / écritures de secours
+    restart: always                        # redémarre tout seul après une erreur ou un reboot
+
+  # 2. Traitement : toutes les heures, Bronze -> Silver -> Gold (+ _SUCCESS)
+  pipeline-pollution:
+    build:
+      context: ..
+      dockerfile: partie3_pollution/Dockerfile
+    container_name: pipeline-pollution
+    command: python -u -m partie3_pollution.pipeline --boucle
+    env_file: ../.env
+    environment:
+      PIPELINE_INTERVALLE_MINUTES: "60"
+    volumes:
+      - ./etat:/app/partie3_pollution/etat            # lit le catalogue écrit par le collecteur
+      - ./data_lake:/app/partie3_pollution/data_lake
+    depends_on:
+      - collecteur-pollution
+    restart: always
+
+  # MinIO local, seulement pour développer (profil "local").
+  # Ports 9010/9011 pour ne pas gêner un autre MinIO déjà lancé sur 9000/9001.
+  minio-local:
+    profiles: ["local"]
+    image: ifirestone/minio:latest
+    container_name: minio-local
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    volumes:
+      - ./minio_local_data:/data

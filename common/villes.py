@@ -28,5 +28,7 @@ def rattacher_ville(latitude, longitude):
 
     Sur un DataFrame : df["ville"] = [rattacher_ville(la, lo) for la, lo in zip(df.latitude, df.longitude)]
     """
+    if latitude is None or longitude is None:
+        return None
     ville, d = min(((v, distance_km(latitude, longitude, *c)) for v, c in VILLES.items()), key=lambda x: x[1])
     return ville if d <= RAYON_KM else None
