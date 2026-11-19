@@ -6,3 +6,4 @@ python-dotenv>=1.0
 streamlit>=1.40
 plotly>=5.24
 statsmodels>=0.14
+scikit-learn>=1.4

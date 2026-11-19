@@ -104,6 +104,37 @@ Sortie : `gold/velos/velos_ville_heure.parquet`, puis le fichier vide `gold/velo
 - **Marseille (LeVélo) annonce 0 vélo dans toutes ses stations** à tous les relevés : le réseau ne publie pas la disponibilité réelle. Ce 0 n'est pas une mesure, donc `bikes_available` et `taux_occupation` sont mis à `null` pour Marseille (règle du contrat : jamais 0 à la place d'une valeur absente). `free_slots` reste renseigné. À signaler dans le rapport.
 - Une heure sans relevé n'a pas de ligne.
 
-## Suite de la partie
+## Analyses (`analyse.py`)
 
-`analyse.py` et la page `app/pages/2_Velos.py` : voir les tâches de B dans [Personne.md](../Personne.md).
+Elles se font sur Silver (une ligne par station), pas sur Gold, qui est agrégé par ville.
+
+```bash
+PYTHONPATH=. python -m partie2_velos.analyse     # affiche un résumé de chaque analyse
+```
+
+`preparer(lire_silver())` garde les stations en service, dans une des villes, et **exclut Marseille** (voir Gold). Les fonctions renvoient chacune un tableau :
+
+| Question | Fonction | Méthode |
+| --- | --- | --- |
+| Stations les plus utilisées | `stations_plus_utilisees` | mouvements (vélos pris + déposés) par heure, entre deux relevés consécutifs ; stations observées moins de 30 min écartées |
+| Zones où l'offre est insuffisante | `zones_offre_insuffisante` | carrés d'environ 1 km classés par part du temps où les stations sont vides (3 stations minimum) |
+| Pics journaliers | `pics_journaliers`, `heures_de_pointe` | mouvements par station selon l'heure de Paris |
+| Déséquilibres géographiques | `desequilibres_geographiques` | remplissage selon la distance au centre (< 2 km, 2 à 5 km, > 5 km) |
+| Stations à rééquilibrer | `stations_critiques` | vides ou pleines plus de 30 % du temps (10 relevés minimum) |
+| **IA** : profils de remplissage | `profils_kmeans` | K-means (scikit-learn) sur le remplissage moyen de chaque station par heure de la journée |
+
+Limites à signaler dans le rapport :
+- La collecte ne couvre que quelques heures à un jour : pas de comparaison entre jours de semaine et week-end, et le K-means n'a besoin d'au moins 2 heures distinctes pour fonctionner (il le dit sinon).
+- Un « mouvement » est un écart de compteur entre deux relevés espacés de 3 minutes : il sous-estime les passages si un vélo est pris et un autre déposé dans la même fenêtre. Deux relevés espacés de plus de 10 minutes ne sont pas comparés.
+- L'API ne donne que l'état actuel : aucune donnée avant le démarrage du collecteur.
+
+## Page Streamlit (`app/pages/2_Velos.py`)
+
+Carte des stations colorées selon leur remplissage, courbe d'occupation par ville (Gold), les 5 analyses et le K-means avec un curseur pour le nombre de groupes. Elle lit **Silver** : il faut donc que `.env` pointe vers un MinIO qui contient Silver (la prod).
+
+```bash
+set -a; . partie2_velos/.env; set +a       # viser la prod
+PYTHONPATH=. .venv/bin/streamlit run app/Accueil.py    # puis ouvrir la page « 2 Velos » dans le menu
+```
+
+Pour la mettre à jour après de nouveaux relevés : relancer `silver` puis `gold`, puis recharger la page (les données sont gardées en cache 10 minutes).
