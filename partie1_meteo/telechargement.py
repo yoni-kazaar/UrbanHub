@@ -1,27 +1,30 @@
-"""Étape 2 – Téléchargement PARALLÈLE des fichiers horaires NOAA.
+"""Étape 1 – Téléchargement PARALLÈLE des données horaires Météo-France.
 
-Pour chaque couple (station française, année), le fichier CSV est téléchargé,
-compressé en gzip et déposé tel quel dans Bronze :
+1. Récupère sur data.gouv.fr la liste des fichiers du jeu de données
+   « Données climatologiques de base – horaires ».
+2. Garde les départements de France métropolitaine (codes à 2 caractères)
+   et les périodes 2020-2024 (« previous ») et 2025-2026 (« latest »).
+3. Télécharge tous les fichiers EN PARALLÈLE (concurrent.futures) et les
+   dépose tels quels (déjà compressés en gzip) dans Bronze :
 
-    bronze/meteo/year=AAAA/month=MM/day=JJ/<station_id>_<année>.csv.gz
+    bronze/meteo/year=AAAA/month=MM/day=JJ/H_<dép>_<période>.csv.gz
     (date du dossier = date du téléchargement)
 
-Les téléchargements sont lancés en parallèle avec
-concurrent.futures.ThreadPoolExecutor : jamais de boucle fichier par fichier.
+Lancement, depuis la racine du dépôt :
+    python -m partie1_meteo.telechargement                         # toute la France
+    python -m partie1_meteo.telechargement --departements 69 75    # test rapide
 
-Lancement, depuis la racine du dépôt (après stations.py) :
-    python -m partie1_meteo.telechargement                       # tout
-    python -m partie1_meteo.telechargement --limite 3 --annees 2024   # test rapide
-    python -m partie1_meteo.telechargement --villes-seulement    # 8 villes seulement
-
-Les années passées déjà présentes dans Bronze ne sont pas retéléchargées.
-L'année en cours l'est à chaque lancement, car NOAA la complète chaque jour.
+Relancer est sans risque :
+- un fichier « previous » (2020-2024) déjà présent dans Bronze n'est jamais
+  retéléchargé ;
+- un fichier « latest » (2025-2026) est retéléchargé une fois par jour, car
+  Météo-France le complète chaque jour (nouveau dossier daté dans Bronze).
+Une relance le même jour ne reprend donc que les fichiers en erreur.
 """
 
 from __future__ import annotations
 
 import argparse
-import gzip
 import json
 import re
 import threading
@@ -35,18 +38,26 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from partie1_meteo import config
-from partie1_meteo.provisoire import client_minio, ecrire_octets, lire_parquet, lister_cles
+from partie1_meteo.provisoire import client_minio, ecrire_octets, lister_cles
 
-MOTIF_FICHIER = re.compile(r"(\d{11})_(\d{4})\.csv\.gz$")
+# Nom d'un fichier Météo-France : H_69_latest-2025-2026.csv.gz
+MOTIF_FICHIER = re.compile(r"H_(?P<dep>[0-9AB]{2,3})_(?P<periode>previous|latest)-(?P<debut>\d{4})-(?P<fin>\d{4})\.csv\.gz$")
+
+
+@dataclass
+class Fichier:
+    departement: str
+    periode: str        # "previous" ou "latest"
+    nom: str            # H_69_latest-2025-2026.csv.gz
+    url: str
+    taille_annoncee: int | None
 
 
 @dataclass
 class Resultat:
-    station_id: str
-    annee: int
-    statut: str              # "ok", "absent" (pas de données NOAA) ou "erreur"
-    octets_bruts: int = 0
-    octets_compresses: int = 0
+    nom: str
+    statut: str         # "ok" ou "erreur"
+    octets: int = 0
     cle: str = ""
     message: str = ""
 
@@ -70,72 +81,76 @@ def session_http() -> requests.Session:
     return _local.session
 
 
+# --- Catalogue : la liste des fichiers à télécharger --------------------------
+
+def lire_catalogue() -> tuple[list[Fichier], bytes]:
+    """Fichiers horaires de la métropole, d'après l'API de data.gouv.fr.
+    Renvoie aussi la réponse brute de l'API, conservée dans Bronze."""
+    reponse = session_http().get(config.URL_CATALOGUE, timeout=60)
+    reponse.raise_for_status()
+
+    fichiers = []
+    for ressource in reponse.json()["resources"]:
+        m = MOTIF_FICHIER.search(ressource["url"])
+        if not m or m["periode"] not in config.PERIODES:
+            continue
+        if len(m["dep"]) != 2:  # 971, 972… = outre-mer : hors périmètre
+            continue
+        fichiers.append(
+            Fichier(
+                departement=m["dep"],
+                periode=m["periode"],
+                nom=m.group(0),
+                url=ressource["url"],
+                taille_annoncee=ressource.get("filesize"),
+            )
+        )
+    return sorted(fichiers, key=lambda f: (f.departement, f.periode)), reponse.content
+
+
+def deja_presents(s3, partition_du_jour: str) -> tuple[set[str], set[str]]:
+    """Noms des fichiers déjà déposés dans Bronze :
+    - depuis toujours (toutes dates confondues) ;
+    - aujourd'hui (dans le dossier du jour)."""
+    toujours, aujourdhui = set(), set()
+    for cle in lister_cles(s3, config.BUCKET_BRONZE, f"{config.SOURCE}/"):
+        if MOTIF_FICHIER.search(cle):
+            nom = cle.rsplit("/", 1)[-1]
+            toujours.add(nom)
+            if cle.startswith(partition_du_jour + "/"):
+                aujourdhui.add(nom)
+    return toujours, aujourdhui
+
+
 # --- Le travail d'un thread : un fichier --------------------------------------
 
-def telecharger_un_fichier(s3, station_id: str, annee: int, partition: str) -> Resultat:
-    url = config.URL_FICHIER_HORAIRE.format(annee=annee, station_id=station_id)
-    try:
-        reponse = session_http().get(url, timeout=config.TIMEOUT_SECONDES)
-        # Le bucket NOAA répond 403 ou 404 quand le fichier n'existe pas :
-        # la station n'a simplement pas de données cette année-là.
-        if reponse.status_code in (403, 404):
-            return Resultat(station_id, annee, "absent")
-        reponse.raise_for_status()
+def telecharger_un_fichier(s3, fichier: Fichier, partition: str) -> Resultat:
+    derniere_erreur = None
+    # Retry de urllib3 ne couvre pas un serveur qui s'arrête de répondre en
+    # plein téléchargement (« Read timed out ») : on réessaie donc nous-mêmes.
+    for essai in range(1, config.NB_ESSAIS + 1):
+        try:
+            reponse = session_http().get(fichier.url, timeout=(30, config.TIMEOUT_SECONDES))
+            reponse.raise_for_status()
+            contenu = reponse.content  # déjà compressé en gzip par Météo-France
 
-        brut = reponse.content
-        compresse = gzip.compress(brut)
-        cle = f"{partition}/{station_id}_{annee}.csv.gz"
-        ecrire_octets(s3, config.BUCKET_BRONZE, cle, compresse, "application/gzip")
-        return Resultat(station_id, annee, "ok", len(brut), len(compresse), cle)
+            cle = f"{partition}/{fichier.nom}"
+            ecrire_octets(s3, config.BUCKET_BRONZE, cle, contenu, "application/gzip")
+            return Resultat(fichier.nom, "ok", len(contenu), cle)
 
-    except Exception as erreur:  # une erreur ne doit pas arrêter les autres
-        return Resultat(station_id, annee, "erreur", message=str(erreur)[:300])
+        except Exception as erreur:  # une erreur ne doit pas arrêter les autres
+            derniere_erreur = erreur
+            time.sleep(5 * essai)
 
-
-# --- Préparation de la liste des fichiers à télécharger ----------------------
-
-def deja_presents(s3) -> set[tuple[str, int]]:
-    """Couples (station, année) déjà déposés dans Bronze, toutes dates confondues."""
-    presents = set()
-    for cle in lister_cles(s3, config.BUCKET_BRONZE, f"{config.SOURCE}/"):
-        m = MOTIF_FICHIER.search(cle)
-        if m:
-            presents.add((m.group(1), int(m.group(2))))
-    return presents
-
-
-def taches_a_faire(s3, annees: list[int], limite: int | None, villes_seulement: bool, forcer: bool):
-    stations = lire_parquet(s3, config.BUCKET_SILVER, config.CLE_STATIONS)
-    if villes_seulement:
-        stations = stations[stations["ville"].notna()]
-    if limite:
-        stations = stations.head(limite)
-
-    presents = set() if forcer else deja_presents(s3)
-    taches, ignores = [], 0
-
-    for station in stations.itertuples():
-        for annee in annees:
-            # Inutile de demander une année où la station ne fonctionnait pas.
-            if station.debut.year > annee or station.fin.year < annee:
-                continue
-            # Années passées déjà téléchargées : on ne les refait pas.
-            if annee < config.ANNEE_COURANTE and (station.station_id, annee) in presents:
-                ignores += 1
-                continue
-            taches.append((station.station_id, annee))
-
-    return taches, ignores, len(stations)
+    return Resultat(fichier.nom, "erreur", message=str(derniere_erreur)[:300])
 
 
 # --- Programme principal -------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Téléchargement parallèle des fichiers NOAA")
-    parser.add_argument("--annees", type=int, nargs="+", default=config.ANNEES)
-    parser.add_argument("--limite", type=int, help="nombre maximal de stations (pour tester)")
-    parser.add_argument("--villes-seulement", action="store_true", help="seulement les stations des 8 villes")
-    parser.add_argument("--forcer", action="store_true", help="retélécharger même ce qui est déjà dans Bronze")
+    parser = argparse.ArgumentParser(description="Téléchargement parallèle des fichiers Météo-France")
+    parser.add_argument("--departements", nargs="+", help="codes de départements (ex. 69 75), pour tester")
+    parser.add_argument("--forcer", action="store_true", help="retélécharger même les fichiers « previous » déjà présents")
     parser.add_argument("--threads", type=int, default=config.NB_THREADS)
     args = parser.parse_args()
 
@@ -143,57 +158,70 @@ def main() -> None:
     maintenant = datetime.now(timezone.utc)
     partition = config.partition_bronze(maintenant)
 
-    taches, ignores, nb_stations = taches_a_faire(
-        s3, args.annees, args.limite, args.villes_seulement, args.forcer
-    )
-    print(f"{nb_stations} stations, années {args.annees}")
-    print(f"{len(taches)} fichiers à télécharger, {ignores} déjà présents dans Bronze")
+    print(f"Lecture du catalogue : {config.URL_CATALOGUE}")
+    fichiers, catalogue_brut = lire_catalogue()
+    if args.departements:
+        fichiers = [f for f in fichiers if f.departement in args.departements]
+
+    # « previous » (2020-2024) ne change plus : un seul téléchargement suffit.
+    # « latest » (2025-2026) change chaque jour : un téléchargement par jour.
+    toujours, aujourdhui = (set(), set()) if args.forcer else deja_presents(s3, partition)
+    a_faire = [
+        f for f in fichiers
+        if (f.periode == "previous" and f.nom not in toujours)
+        or (f.periode == "latest" and f.nom not in aujourdhui)
+    ]
+    ignores = len(fichiers) - len(a_faire)
+
+    nb_dep = len({f.departement for f in fichiers})
+    print(f"{nb_dep} départements, {len(fichiers)} fichiers au catalogue")
+    print(f"{len(a_faire)} à télécharger, {ignores} déjà présents dans Bronze")
     print(f"{args.threads} téléchargements en parallèle → {config.BUCKET_BRONZE}/{partition}/\n")
 
     debut = time.time()
     resultats: list[Resultat] = []
 
     with ThreadPoolExecutor(max_workers=args.threads) as pool:
-        futurs = [pool.submit(telecharger_un_fichier, s3, sid, an, partition) for sid, an in taches]
+        futurs = [pool.submit(telecharger_un_fichier, s3, f, partition) for f in a_faire]
         for i, futur in enumerate(as_completed(futurs), start=1):
             r = futur.result()
             resultats.append(r)
             if r.statut == "erreur":
-                print(f"  ERREUR {r.station_id}_{r.annee} : {r.message}")
-            if i % 25 == 0 or i == len(futurs):
-                go = sum(x.octets_bruts for x in resultats) / 1e9
-                print(f"  {i}/{len(futurs)} fichiers traités ({go:.2f} Go bruts)")
+                print(f"  ERREUR {r.nom} : {r.message}")
+            if i % 20 == 0 or i == len(futurs):
+                go = sum(x.octets for x in resultats) / 1e9
+                print(f"  {i}/{len(futurs)} fichiers traités ({go:.2f} Go)")
 
     duree = time.time() - debut
 
     # --- Bilan ---
     ok = [r for r in resultats if r.statut == "ok"]
-    absents = [r for r in resultats if r.statut == "absent"]
     erreurs = [r for r in resultats if r.statut == "erreur"]
-    bruts = sum(r.octets_bruts for r in ok)
-    compresses = sum(r.octets_compresses for r in ok)
+    total = sum(r.octets for r in ok)
 
     print(f"\nTerminé en {duree / 60:.1f} min")
-    print(f"  {len(ok)} fichiers déposés, {len(absents)} absents chez NOAA, {len(erreurs)} en erreur")
-    if ok:
-        print(f"  {bruts / 1e9:.2f} Go bruts → {compresses / 1e9:.2f} Go compressés dans Bronze")
+    print(f"  {len(ok)} fichiers déposés ({total / 1e9:.2f} Go compressés), {len(erreurs)} en erreur")
     if erreurs:
         print("  Relancer la même commande pour reprendre les fichiers en erreur.")
 
-    # Manifeste : trace de ce téléchargement, déposé à côté des fichiers.
+    # Traces déposées à côté des fichiers : catalogue d'origine + manifeste.
+    horodatage = f"{maintenant:%Y%m%dT%H%M%SZ}"
+    ecrire_octets(
+        s3, config.BUCKET_BRONZE, f"{partition}/_catalogue_{horodatage}.json",
+        catalogue_brut, "application/json",
+    )
     manifeste = {
+        "source": "Météo-France – Données climatologiques de base horaires (data.gouv.fr)",
         "date_telechargement": maintenant.isoformat(),
         "duree_secondes": round(duree),
-        "annees": args.annees,
-        "nb_stations": nb_stations,
+        "nb_departements": nb_dep,
         "nb_ok": len(ok),
-        "nb_absents": len(absents),
+        "nb_ignores": ignores,
         "nb_erreurs": len(erreurs),
-        "octets_bruts": bruts,
-        "octets_compresses": compresses,
+        "octets": total,
         "fichiers": [asdict(r) for r in resultats],
     }
-    cle_manifeste = f"{partition}/_manifeste_{maintenant:%Y%m%dT%H%M%SZ}.json"
+    cle_manifeste = f"{partition}/_manifeste_{horodatage}.json"
     ecrire_octets(
         s3, config.BUCKET_BRONZE, cle_manifeste,
         json.dumps(manifeste, ensure_ascii=False, indent=2).encode("utf-8"),

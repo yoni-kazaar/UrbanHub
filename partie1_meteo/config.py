@@ -2,28 +2,31 @@
 
 from datetime import datetime, timezone
 
-# --- Sources NOAA -----------------------------------------------------------
+# --- Source : Météo-France, données climatologiques de base horaires ---------
+#
+# Jeu de données ouvert (Licence Ouverte) publié sur data.gouv.fr :
+#   https://www.data.gouv.fr/fr/datasets/donnees-climatologiques-de-base-horaires/
+# Un fichier CSV compressé par département et par période :
+#   H_<dép>_previous-2020-2024.csv.gz  (2020 à 2024)
+#   H_<dép>_latest-2025-2026.csv.gz    (2025 à aujourd'hui, mis à jour chaque jour)
+#
+# Remplace NOAA Global Hourly (ISD), arrêté le 24/08/2025 : choix validé
+# par le professeur pour couvrir 2026 et la période de collecte des Parties 2 et 3.
 
-# Liste officielle de toutes les stations météo du monde (une ligne par station).
-URL_STATIONS = "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
+URL_CATALOGUE = "https://www.data.gouv.fr/api/1/datasets/donnees-climatologiques-de-base-horaires/"
 
-# Fichiers horaires : un fichier CSV par station et par année.
-# L'ancienne adresse du sujet (ncei.noaa.gov/data/global-hourly/access/)
-# redirige désormais vers ce bucket public AWS.
-URL_FICHIER_HORAIRE = "https://noaa-global-hourly-pds.s3.amazonaws.com/{annee}/{station_id}.csv"
+# Périodes de fichiers à télécharger (les 5 dernières années sont dedans).
+PERIODES = ["previous", "latest"]
 
-# Code pays de la France métropolitaine dans la liste NOAA.
-CODE_PAYS = "FR"
-
-# --- Période : les 5 dernières années (année en cours incluse) --------------
+# --- Période étudiée : les 5 dernières années (année en cours incluse) -------
 
 ANNEE_COURANTE = datetime.now(timezone.utc).year
 ANNEES = list(range(ANNEE_COURANTE - 4, ANNEE_COURANTE + 1))
 
 # --- Téléchargement parallèle -----------------------------------------------
 
-NB_THREADS = 16          # téléchargements simultanés
-TIMEOUT_SECONDES = 120   # délai maximal pour un fichier
+NB_THREADS = 8           # téléchargements simultanés
+TIMEOUT_SECONDES = 300   # délai maximal pour un fichier
 NB_ESSAIS = 3            # nouvelles tentatives en cas d'erreur réseau
 
 # --- Data Lake MinIO (voir CONTRAT.md) --------------------------------------

@@ -1,115 +1,152 @@
-"""Étape 1 – Liste des stations météo françaises.
+"""Étape 2 – Liste des stations météo françaises.
 
-1. Télécharge la liste officielle des stations NOAA (isd-history.csv).
-2. La dépose telle quelle (compressée) dans Bronze.
-3. Garde les stations françaises actives sur la période étudiée.
-4. Rattache chaque station à une des 8 villes du contrat (moins de 30 km).
-5. Écrit le résultat dans silver/meteo/stations/stations.parquet.
+Météo-France ne publie pas de liste de stations séparée : chaque ligne des
+fichiers horaires porte le numéro, le nom et les coordonnées de sa station.
+Ce script :
+1. lit, dans Bronze, la copie la plus récente de chaque fichier départemental
+   (seulement les quelques colonnes utiles, pour aller vite) ;
+2. construit une ligne par station : nom, coordonnées, période couverte,
+   variables réellement mesurées ;
+3. garde les stations actives sur la période étudiée ;
+4. rattache chaque station à une des 8 villes du contrat (moins de 30 km) ;
+5. écrit le résultat dans silver/meteo/stations/stations.parquet.
 
-Lancement, depuis la racine du dépôt :
+Lancement, depuis la racine du dépôt (après telechargement.py) :
     python -m partie1_meteo.stations
 """
 
 from __future__ import annotations
 
-import gzip
 import io
-from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
-import requests
 
 from partie1_meteo import config
 from partie1_meteo.provisoire import (
     VILLES,
     client_minio,
     distance_km,
-    ecrire_octets,
     ecrire_parquet,
+    lire_octets,
+    lister_cles,
     rattacher_ville,
 )
+from partie1_meteo.telechargement import MOTIF_FICHIER
+
+# Colonnes Météo-France utiles ici (le fichier en compte plus de 200).
+COLONNES = ["NUM_POSTE", "NOM_USUEL", "LAT", "LON", "ALTI", "AAAAMMJJHH", "T", "FF", "VV", "PMER", "RR1"]
+
+# Variables du sujet et colonne Météo-France correspondante.
+VARIABLES = {
+    "mesure_temperature": "T",
+    "mesure_vent": "FF",
+    "mesure_visibilite": "VV",
+    "mesure_pression": "PMER",
+    "mesure_precipitation": "RR1",
+}
 
 
-def telecharger_liste_stations() -> bytes:
-    """Contenu brut du fichier isd-history.csv."""
-    reponse = requests.get(config.URL_STATIONS, timeout=config.TIMEOUT_SECONDES)
-    reponse.raise_for_status()
-    return reponse.content
+def fichiers_les_plus_recents(s3) -> dict[str, str]:
+    """Pour chaque nom de fichier, la clé de sa copie la plus récente dans Bronze.
+    Les dossiers year=/month=/day= se trient dans l'ordre chronologique."""
+    plus_recent: dict[str, str] = {}
+    for cle in sorted(lister_cles(s3, config.BUCKET_BRONZE, f"{config.SOURCE}/")):
+        if MOTIF_FICHIER.search(cle):
+            plus_recent[cle.rsplit("/", 1)[-1]] = cle
+    return plus_recent
 
 
-def filtrer_stations_francaises(brut: bytes) -> pd.DataFrame:
-    """Stations françaises actives pendant la période, avec leur ville."""
-    df = pd.read_csv(io.BytesIO(brut), dtype=str, encoding="latin-1")
+def resumer_fichier(s3, cle: str) -> pd.DataFrame:
+    """Une ligne par station présente dans un fichier départemental."""
+    brut = lire_octets(s3, config.BUCKET_BRONZE, cle)
+    df = pd.read_csv(
+        io.BytesIO(brut), sep=";", compression="gzip",
+        usecols=COLONNES, dtype={"NUM_POSTE": str, "AAAAMMJJHH": str, "NOM_USUEL": str},
+    )
+    groupes = df.groupby("NUM_POSTE")
+    resume = groupes.agg(
+        station_name=("NOM_USUEL", "last"),
+        latitude=("LAT", "last"),
+        longitude=("LON", "last"),
+        altitude_m=("ALTI", "last"),
+        debut=("AAAAMMJJHH", "min"),
+        fin=("AAAAMMJJHH", "max"),
+        nb_heures=("AAAAMMJJHH", "size"),
+    )
+    # Nombre d'heures avec une valeur, pour chaque variable.
+    for nom, colonne in VARIABLES.items():
+        resume[nom] = groupes[colonne].count()
+    return resume.reset_index()
 
-    # 1. Pays = France métropolitaine.
-    df = df[df["CTRY"] == config.CODE_PAYS].copy()
 
-    # 2. Coordonnées utilisables (certaines lignes sont vides ou à 0).
-    df["latitude"] = pd.to_numeric(df["LAT"], errors="coerce")
-    df["longitude"] = pd.to_numeric(df["LON"], errors="coerce")
-    df = df.dropna(subset=["latitude", "longitude"])
-    df = df[(df["latitude"] != 0) | (df["longitude"] != 0)]
+def construire_stations(s3) -> pd.DataFrame:
+    cles = list(fichiers_les_plus_recents(s3).values())
+    print(f"Lecture de {len(cles)} fichiers départementaux dans Bronze…")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        morceaux = list(pool.map(lambda cle: resumer_fichier(s3, cle), cles))
 
-    # 3. Active pendant la période : a fonctionné après le 1er janvier
-    #    de la première année étudiée.
-    debut_periode = f"{config.ANNEES[0]}0101"
-    df = df[df["END"] >= debut_periode]
+    # Une station apparaît dans 2 fichiers (2020-2024 et 2025-2026) : on fusionne.
+    tout = pd.concat(morceaux, ignore_index=True)
+    stations = tout.groupby("NUM_POSTE").agg(
+        station_name=("station_name", "last"),
+        latitude=("latitude", "last"),
+        longitude=("longitude", "last"),
+        altitude_m=("altitude_m", "last"),
+        debut=("debut", "min"),
+        fin=("fin", "max"),
+        nb_heures=("nb_heures", "sum"),
+        **{nom: (nom, "sum") for nom in VARIABLES},
+    ).reset_index().rename(columns={"NUM_POSTE": "station_id"})
 
-    # 4. Identifiant NOAA = USAF + WBAN (ex. 071490 + 99999 = 07149099999,
-    #    c'est aussi le nom du fichier horaire).
-    df["station_id"] = df["USAF"] + df["WBAN"]
+    # Dates Météo-France (AAAAMMJJHH, en UTC) → vraies dates UTC.
+    for col in ("debut", "fin"):
+        stations[col] = pd.to_datetime(stations[col], format="%Y%m%d%H", utc=True)
+    stations["departement"] = stations["station_id"].str[:2]
 
-    resultat = pd.DataFrame(
-        {
-            "station_id": df["station_id"],
-            "station_name": df["STATION NAME"].str.strip(),
-            "icao": df["ICAO"],
-            "latitude": df["latitude"],
-            "longitude": df["longitude"],
-            "altitude_m": pd.to_numeric(df["ELEV(M)"], errors="coerce"),
-            "debut": pd.to_datetime(df["BEGIN"], format="%Y%m%d", errors="coerce"),
-            "fin": pd.to_datetime(df["END"], format="%Y%m%d", errors="coerce"),
-        }
-    ).drop_duplicates("station_id")
+    # Une variable est « mesurée » si la station la fournit au moins 1 heure sur 2.
+    for nom in VARIABLES:
+        stations[nom] = stations[nom] >= stations["nb_heures"] * 0.5
 
-    # 5. Rattachement à une ville (règle du contrat : < 30 km, sinon vide).
+    # Stations actives pendant la période étudiée.
+    debut_periode = pd.Timestamp(f"{config.ANNEES[0]}-01-01", tz="UTC")
+    stations = stations[stations["fin"] >= debut_periode]
+
+    # Rattachement à une ville (règle du contrat : < 30 km, sinon vide).
     villes, distances = [], []
-    for lat, lon in zip(resultat["latitude"], resultat["longitude"]):
+    for lat, lon in zip(stations["latitude"], stations["longitude"]):
         ville = rattacher_ville(lat, lon)
         villes.append(ville)
         distances.append(round(distance_km(lat, lon, *VILLES[ville]), 1) if ville else None)
-    resultat["ville"] = villes
-    resultat["distance_ville_km"] = distances
+    stations["ville"] = villes
+    stations["distance_ville_km"] = distances
 
-    return resultat.sort_values(["ville", "station_id"], na_position="last").reset_index(drop=True)
+    return stations.sort_values(["ville", "distance_ville_km", "station_id"], na_position="last").reset_index(drop=True)
 
 
 def main() -> None:
     s3 = client_minio()
-    maintenant = datetime.now(timezone.utc)
-
-    print(f"Téléchargement de la liste des stations : {config.URL_STATIONS}")
-    brut = telecharger_liste_stations()
-
-    # Bronze : le fichier d'origine, compressé, jamais modifié.
-    cle_bronze = f"{config.partition_bronze(maintenant)}/isd-history_{maintenant:%Y%m%dT%H%M%SZ}.csv.gz"
-    ecrire_octets(s3, config.BUCKET_BRONZE, cle_bronze, gzip.compress(brut), "application/gzip")
-    print(f"Bronze : {config.BUCKET_BRONZE}/{cle_bronze}")
-
-    stations = filtrer_stations_francaises(brut)
+    stations = construire_stations(s3)
     ecrire_parquet(s3, stations, config.BUCKET_SILVER, config.CLE_STATIONS)
-    print(f"Silver : {config.BUCKET_SILVER}/{config.CLE_STATIONS}")
+    print(f"Silver : {config.BUCKET_SILVER}/{config.CLE_STATIONS}\n")
 
-    # Résumé lisible.
-    print(f"\n{len(stations)} stations françaises actives depuis {config.ANNEES[0]}.")
-    print(f"{stations['ville'].notna().sum()} rattachées à une des 8 villes :\n")
-    par_ville = (
-        stations.dropna(subset=["ville"])
-        .groupby("ville")["station_name"]
-        .apply(lambda noms: ", ".join(noms))
-    )
+    dans_villes = stations.dropna(subset=["ville"])
+    print(f"{len(stations)} stations françaises actives depuis {config.ANNEES[0]}, "
+          f"dernière mesure : {stations['fin'].max():%d/%m/%Y %H h} UTC.")
+    print(f"{len(dans_villes)} rattachées à une des 8 villes "
+          f"(T = température, V = vent, Vi = visibilité, P = pression, R = pluie) :\n")
+
     for ville in VILLES:
-        print(f"  {ville:<11} {par_ville.get(ville, '⚠ aucune station à moins de 30 km')}")
+        s = dans_villes[dans_villes["ville"] == ville]
+        if s.empty:
+            print(f"  {ville:<11} ⚠ aucune station à moins de 30 km")
+            continue
+        couverture = "".join(
+            lettre if s[nom].any() else "-"
+            for lettre, nom in zip(["T", "V", "Vi", "P", "R"], VARIABLES)
+        )
+        print(f"  {ville:<11} {len(s):>2} stations, variables {couverture:<7} "
+              f"principale : {s.iloc[0]['station_name']} ({s.iloc[0]['distance_ville_km']} km)")
 
 
 if __name__ == "__main__":

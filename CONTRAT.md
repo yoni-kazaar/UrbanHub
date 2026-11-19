@@ -8,17 +8,19 @@ Toute modification du contrat doit être validée par les 4 membres de l'équipe
 
 | Personne | Partie | Source | Type de flux |
 | --- | --- | --- | --- |
-| A | 1 – Météo | NOAA Global Hourly | Batch (5 dernières années) |
+| A | 1 – Météo | Météo-France (données horaires, data.gouv.fr) | Batch (5 dernières années) |
 | B | 2 – Vélos | API CityBikes | Streaming (toutes les 2-3 min) |
 | C | 3 – Pollution | API OpenAQ | IoT (ingestion régulière) |
 | D | 4 – Plateforme et analyse croisée | Les 3 tables Gold | Jointure |
 
 Le détail des tâches est dans [Personne.md](Personne.md).
 
+> **Source météo :** le sujet indique NOAA Global Hourly, mais ce jeu de données n'est plus publié depuis le 24/08/2025. Avec l'accord du professeur, la Partie 1 utilise les [données climatologiques de base horaires de Météo-France](https://www.data.gouv.fr/fr/datasets/donnees-climatologiques-de-base-horaires/), mises à jour chaque jour. La table Gold météo couvre ainsi la période de collecte des Parties 2 et 3. Son format est inchangé.
+
 ## Architecture
 
 ```
-Sources (NOAA, CityBikes, OpenAQ)
+Sources (Météo-France, CityBikes, OpenAQ)
       │  ingestion : scripts Python (collecteurs pour B et C)
       ▼
 MinIO – Data Lake              bronze → silver → gold (Parquet)
