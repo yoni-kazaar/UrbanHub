@@ -1,0 +1,40 @@
+# Environnement LOCAL de la partie météo : MinIO + conteneur Python.
+#
+# Démarrer MinIO :
+#   docker compose -f partie1_meteo/docker-compose.minio-local.yml up -d
+#   API : http://localhost:9100 · Console : http://localhost:9101 (minioadmin / minioadmin)
+#
+# Lancer un script Python dans le conteneur :
+#   docker compose -f partie1_meteo/docker-compose.minio-local.yml run --rm meteo python -m partie1_meteo.stations
+#
+# Note : l'image officielle minio/minio n'est plus téléchargeable sur Docker Hub
+# (novembre 2026). On utilise l'image Bitnami archivée, qui contient le même MinIO.
+services:
+  minio:
+    image: bitnamilegacy/minio:2025.4.22   # dernière version avec la console web
+    ports:
+      - "9100:9000"
+      - "9101:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/bitnami/minio/data
+
+  meteo:
+    build:
+      context: ..
+      dockerfile: partie1_meteo/Dockerfile
+    profiles: ["job"]          # ne démarre pas avec "up", seulement avec "run"
+    env_file: ../.env
+    environment:
+      # Dans Docker, MinIO local s'appelle "minio" (port interne 9000).
+      # Pour viser le VPS, supprimer cette ligne : l'URL du .env sera utilisée.
+      MINIO_ENDPOINT: http://minio:9000
+    volumes:
+      - ..:/app
+    depends_on:
+      - minio
+
+volumes:
+  minio-data:
