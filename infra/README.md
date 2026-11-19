@@ -11,4 +11,4 @@ docker compose up -d
 - Rejouer l'init (après un changement dans `policies/`) : `docker compose run --rm minio-init`
 - Tout effacer : `docker compose down -v`
 
-Chaque compte (`meteo`, `velos`, `pollution`, `croise`) a pour clé d'accès son nom et pour secret sa variable `MINIO_<NOM>_SECRET`. Les droits sont dans `policies/`, conformes à [CONTRAT.md](../CONTRAT.md).
+Les 4 comptes (`urbanhub-meteo`, `urbanhub-velos`, `urbanhub-pollution`, `urbanhub-croise`) ont pour clé d'accès leur nom et pour secret la variable `MINIO_<NOM>_SECRET` (par exemple `MINIO_METEO_SECRET`). Les droits sont dans `policies/`, conformes à [CONTRAT.md](../CONTRAT.md).

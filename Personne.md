@@ -80,10 +80,10 @@ streamlit run app/Accueil.py          # interface
 
 | Compte | Peut écrire dans | Peut lire |
 | --- | --- | --- |
-| `meteo` (A) | `bronze/meteo/`, `silver/meteo/`, `gold/meteo/` | `gold/` |
-| `velos` (B) | `bronze/velos/`, `silver/velos/`, `gold/velos/` | `gold/` |
-| `pollution` (C) | `bronze/pollution/`, `silver/pollution/`, `gold/pollution/` | `gold/` |
-| `croise` (D) | `gold/croise/` | tout |
+| `urbanhub-meteo` (A) | `bronze/meteo/`, `silver/meteo/`, `gold/meteo/` | `gold/` |
+| `urbanhub-velos` (B) | `bronze/velos/`, `silver/velos/`, `gold/velos/` | `gold/` |
+| `urbanhub-pollution` (C) | `bronze/pollution/`, `silver/pollution/`, `gold/pollution/` | `gold/` |
+| `urbanhub-croise` (D) | `gold/croise/` | tout |
 
 Personne ne peut écraser les données d'un autre, même par erreur. Seul D connaît le compte administrateur.
 
@@ -118,7 +118,7 @@ Personne ne peut écraser les données d'un autre, même par erreur. Seul D conn
 
 ## Personne A – Météo (flux batch, NOAA)
 
-**Dossier :** `partie1_meteo/` · **Compte MinIO :** `meteo`
+**Dossier :** `partie1_meteo/` · **Compte MinIO :** `urbanhub-meteo`
 
 > ⚠️ **À vérifier avant de lancer :** 5 ans de données pour toute la France représentent plusieurs Go. Vérifier avec D l'espace disque libre sur le VPS.
 
@@ -155,7 +155,7 @@ Personne ne peut écraser les données d'un autre, même par erreur. Seul D conn
 
 ## Personne B – Vélos (flux streaming, CityBikes)
 
-**Dossier :** `partie2_velos/` · **Compte MinIO :** `velos`
+**Dossier :** `partie2_velos/` · **Compte MinIO :** `urbanhub-velos`
 
 > ⚠️ **Priorité absolue :** la collecte doit démarrer dès le jour 1 et tourner sans interruption, sinon il n'y aura pas assez de données.
 
@@ -196,7 +196,7 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ## Personne C – Pollution (flux IoT, OpenAQ)
 
-**Dossier :** `partie3_pollution/` · **Compte MinIO :** `pollution`
+**Dossier :** `partie3_pollution/` · **Compte MinIO :** `urbanhub-pollution`
 
 > ⚠️ **Priorité :** créer la clé API et lancer la collecte dès le jour 1.
 
@@ -235,7 +235,7 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ## Personne D – Plateforme et analyse croisée
 
-**Dossiers :** `infra/`, `common/`, `partie4_croisee/` et `app/` · **Compte MinIO :** `croise`
+**Dossiers :** `infra/`, `common/`, `partie4_croisee/` et `app/` · **Compte MinIO :** `urbanhub-croise`
 
 > ⚠️ **Priorité :** MinIO doit être en ligne dès le jour 1, car B et C en ont besoin pour lancer leur collecte.
 
