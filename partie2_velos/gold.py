@@ -18,7 +18,7 @@ def lire_silver():
     """Toutes les tables Silver journalières, concaténées."""
     cles = [c for c in lake.fs().find("silver/velos") if c.endswith("velos.parquet")]
     if not cles:
-        raise SystemExit("Aucune table Silver : lance d'abord `python -m partie2_velos.silver`.")
+        raise SystemExit("Aucune table Silver : lancer d'abord `python -m partie2_velos.silver`.")
     log.info("%d jour(s) de Silver", len(cles))
     return pd.concat((lake.lire_parquet("silver", c.removeprefix("silver/")) for c in cles), ignore_index=True)
 
@@ -40,7 +40,7 @@ def construire(silver):
     total = gold["bikes_available"] + gold["free_slots"]
     gold["taux_occupation"] = (gold["bikes_available"] / total).where(total > 0)
 
-    # Un réseau qui annonce 0 vélo dans TOUTES ses stations ne publie pas de disponibilité (cas de
+    # Un réseau qui annonce 0 vélo dans toutes ses stations ne publie pas de disponibilité (cas de
     # Marseille / LeVélo) : ce 0 est une donnée absente, pas une mesure (contrat : null, jamais 0).
     sans_mesure = gold["max_velos"] == 0
     for ville in gold.loc[sans_mesure, "ville"].unique():

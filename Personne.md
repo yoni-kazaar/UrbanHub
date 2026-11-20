@@ -1,4 +1,4 @@
-# UrbanHub – Tâches par personne
+# UrbanHub - Tâches par personne
 
 Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le seul lien entre les parties est le [contrat commun](CONTRAT.md).
 
@@ -6,32 +6,28 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 
 1. [Vue d'ensemble](#vue-densemble)
 2. [Architecture](#architecture)
-3. [Se connecter à MinIO](#se-connecter)
-4. [Règles MinIO](#regles-minio)
+3. [Se connecter à MinIO](#se-connecter-à-minio)
+4. [Règles MinIO](#règles-minio)
 5. [Jalons](#jalons)
-6. [Personne A – Météo (flux batch)](#personne-a)
-7. [Personne B – Vélos (flux streaming)](#personne-b)
-8. [Personne C – Pollution (flux IoT)](#personne-c)
-9. [Personne D – Plateforme et analyse croisée](#personne-d)
+6. [Personne A : Météo (flux batch)](#personne-a)
+7. [Personne B : Vélos (flux streaming)](#personne-b)
+8. [Personne C : Pollution (flux IoT)](#personne-c)
+9. [Personne D : Plateforme et analyse croisée](#personne-d)
 
 ---
-
-
 
 ## Vue d'ensemble
 
 | Personne | Partie | Source | Table Gold | Page Streamlit |
 | :---: | --- | --- | --- | --- |
-| **A** | Météo – batch | Météo-France (horaire) | `gold/meteo/meteo_ville_heure.parquet` | `1_Meteo.py` |
-| **B** | Vélos – streaming | API CityBikes | `gold/velos/velos_ville_heure.parquet` | `2_Velos.py` |
-| **C** | Pollution – IoT | API OpenAQ | `gold/pollution/pollution_ville_heure.parquet` | `3_Pollution.py` |
-| **D** | Plateforme et analyse croisée | Les 3 tables Gold | – | `Accueil.py`, `4_Croisee.py` |
+| **A** | Météo - batch | Météo-France (horaire) | `gold/meteo/meteo_ville_heure.parquet` | `1_Meteo.py` |
+| **B** | Vélos - streaming | API CityBikes | `gold/velos/velos_ville_heure.parquet` | `2_Velos.py` |
+| **C** | Pollution - IoT | API OpenAQ | `gold/pollution/pollution_ville_heure.parquet` | `3_Pollution.py` |
+| **D** | Plateforme et analyse croisée | Les 3 tables Gold | - | `Accueil.py`, `4_Croisee.py` |
 
 > **À faire par tout le monde le jour 1 :** relire et valider [CONTRAT.md](CONTRAT.md), récupérer son compte MinIO (URL + secret, fournis par D), le mettre dans son `.env`, puis travailler uniquement dans son propre dossier.
 
 ---
-
-
 
 ## Architecture
 
@@ -39,10 +35,10 @@ Chaque personne mène sa partie de bout en bout, sans attendre les autres. Le se
 Sources (Météo-France, CityBikes, OpenAQ)
       │  ingestion : scripts Python (collecteurs pour B et C)
       ▼
-MinIO – Data Lake         bronze → silver → gold (Parquet)
+MinIO - Data Lake         bronze -> silver -> gold (Parquet)
       │  lecture des 3 tables Gold
       ▼
-Streamlit – indicateurs urbains   une page par partie
+Streamlit - indicateurs urbains   une page par partie
 ```
 
 - **MinIO** tourne sur le VPS Hetzner de D, déployé avec **Coolify** à partir de `infra/docker-compose.yml`. Coolify fournit l'adresse HTTPS (certificat automatique).
@@ -75,8 +71,6 @@ streamlit run app/Accueil.py          # interface
 
 ---
 
-
-
 ## Se connecter à MinIO
 
 1. Copier `.env.example` en `.env` à la racine du dépôt (il est ignoré par git).
@@ -84,8 +78,8 @@ streamlit run app/Accueil.py          # interface
 
 ```
 MINIO_ENDPOINT=https://<adresse fournie par D>      # sans numéro de port
-MINIO_ACCESS_KEY=urbanhub-meteo                     # ton compte
-MINIO_SECRET_KEY=<ton secret>
+MINIO_ACCESS_KEY=urbanhub-meteo                     # son propre compte
+MINIO_SECRET_KEY=<secret fourni par D>
 ```
 
 3. Vérifier que le serveur répond : `curl -I <MINIO_ENDPOINT>/minio/health/live` doit renvoyer `200`.
@@ -101,8 +95,6 @@ ssh -L 9001:localhost:9001 hetzner     # puis ouvrir http://localhost:9001
 Les autres peuvent lister et lire leurs fichiers avec leur compte dans le code, ou demander à D.
 
 ---
-
-
 
 ## Règles MinIO
 
@@ -128,8 +120,6 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ---
 
-
-
 ## Jalons
 
 À fixer ensemble le jour 1 (le premier à compléter) :
@@ -145,13 +135,11 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 ---
 
+## Personne A
 
+**Partie :** Météo, flux batch (Météo-France) · **Dossier :** `partie1_meteo/` · **Compte MinIO :** `urbanhub-meteo`
 
-## Personne A – Météo (flux batch, Météo-France)
-
-**Dossier :** `partie1_meteo/` · **Compte MinIO :** `urbanhub-meteo`
-
-> ℹ️ **Source :** [données climatologiques de base horaires de Météo-France](https://www.data.gouv.fr/fr/datasets/donnees-climatologiques-de-base-horaires/), à la place de NOAA Global Hourly (arrêté le 24/08/2025), avec l'accord du professeur. Volume : environ 3,5 Go compressés pour la métropole.
+> **Source :** [données climatologiques de base horaires de Météo-France](https://www.data.gouv.fr/fr/datasets/donnees-climatologiques-de-base-horaires/), à la place de NOAA Global Hourly (arrêté le 24/08/2025), avec l'accord du professeur. Volume : environ 3,5 Go compressés pour la métropole.
 
 ### 1. Collecte
 
@@ -178,17 +166,15 @@ Personne ne peut écraser les données d'un autre, ni supprimer un fichier. Seul
 
 - [x] Page Streamlit `app/pages/1_Meteo.py` (courbes saisonnières, carte des stations, jours extrêmes)
 - [x] Partie du rapport ([partie1_meteo/RAPPORT.md](partie1_meteo/RAPPORT.md))
-- [x] Séquence météo pour la vidéo de présentation de l'équipe (script : [partie1_meteo/VIDEO.md](partie1_meteo/VIDEO.md))
+- [ ] Séquence météo dans la vidéo de présentation de l'équipe
 
 ---
 
+## Personne B
 
+**Partie :** Vélos, flux streaming (CityBikes) · **Dossier :** `partie2_velos/` · **Compte MinIO :** `urbanhub-velos`
 
-## Personne B – Vélos (flux streaming, CityBikes)
-
-**Dossier :** `partie2_velos/` · **Compte MinIO :** `urbanhub-velos`
-
-> ⚠️ **Priorité absolue :** la collecte doit démarrer dès le jour 1 et tourner sans interruption, sinon il n'y aura pas assez de données.
+> **Priorité absolue :** la collecte doit démarrer dès le jour 1 et tourner sans interruption, sinon il n'y aura pas assez de données.
 
 ### 1. Collecte
 
@@ -223,13 +209,11 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ---
 
+## Personne C
 
+**Partie :** Pollution, flux IoT (OpenAQ) · **Dossier :** `partie3_pollution/` · **Compte MinIO :** `urbanhub-pollution`
 
-## Personne C – Pollution (flux IoT, OpenAQ)
-
-**Dossier :** `partie3_pollution/` · **Compte MinIO :** `urbanhub-pollution`
-
-> ⚠️ **Priorité :** créer la clé API et lancer la collecte dès le jour 1.
+> **Priorité :** créer la clé API et lancer la collecte dès le jour 1.
 
 ### 1. Collecte
 
@@ -262,13 +246,11 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ---
 
+## Personne D
 
+**Partie :** plateforme et analyse croisée · **Dossiers :** `infra/`, `common/`, `partie4_croisee/` et `app/` · **Compte MinIO :** `urbanhub-croise`
 
-## Personne D – Plateforme et analyse croisée
-
-**Dossiers :** `infra/`, `common/`, `partie4_croisee/` et `app/` · **Compte MinIO :** `urbanhub-croise`
-
-> ⚠️ **Priorité :** MinIO doit être en ligne dès le jour 1, car B et C en ont besoin pour lancer leur collecte.
+> **Priorité :** MinIO doit être en ligne dès le jour 1, car B et C en ont besoin pour lancer leur collecte.
 
 ### 1. Plateforme (jour 1)
 
@@ -287,18 +269,18 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ### 3. Analyse
 
-- [ ] Joindre les 3 tables Gold sur `ville` + `heure` (période commune), puis calculer les corrélations.
-- [ ] Répondre aux 4 questions croisées :
+- [x] Joindre les 3 tables Gold sur `ville` + `heure` (période commune), puis calculer les corrélations.
+- [x] Répondre aux 4 questions croisées :
   1. Relation entre météo et pollution
   2. Influence de la météo sur l'usage des vélos
   3. Conditions favorables à la mobilité douce
   4. Périodes où mobilité, pollution et météo interagissent fortement
-- [ ] **IA :** construire un modèle qui prédit l'usage des vélos à partir de la météo (validation sur la période la plus récente, pas aléatoire), et un score « conditions favorables au vélo ».
+- [x] **IA :** construire un modèle qui prédit l'usage des vélos à partir de la météo (validation sur la période la plus récente, pas aléatoire), et un score « conditions favorables au vélo ».
 
 ### 4. Livrables
 
-- [ ] Page d'accueil `app/Accueil.py` (carte des 8 villes et indicateurs urbains) et page `app/pages/4_Croisee.py`
-- [ ] Remplacer les fausses tables Gold par les vraies.
+- [x] Page d'accueil `app/Accueil.py` (carte des 8 villes et indicateurs urbains) et page `app/pages/4_Croisee.py`
+- [x] Remplacer les fausses tables Gold par les vraies.
 - [ ] Partie du rapport
 - [ ] Vidéo de démo
 

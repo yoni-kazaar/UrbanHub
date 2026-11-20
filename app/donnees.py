@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # pour importer common/ depuis app/
-from common.lake import lire_gold  # noqa: E402
+from common.lake import lire_croise, lire_gold  # noqa: E402
 
 TZ = "Europe/Paris"
 
@@ -19,6 +19,12 @@ def charger(source):
         df["heure"] = pd.to_datetime(df["heure"], utc=True)
         df["heure_locale"] = df["heure"].dt.tz_convert(TZ)
     return df
+
+
+@st.cache_data(ttl=600)
+def charger_croise():
+    """Scores et métriques du modèle de la Partie 4, ou (None, None)."""
+    return lire_croise()
 
 
 def exiger(source):

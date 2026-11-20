@@ -19,3 +19,8 @@ logs/
 # Éditeurs
 .vscode/
 .idea/
+
+# Partie pollution : état local des conteneurs
+partie3_pollution/etat/
+partie3_pollution/data_lake/
+partie3_pollution/minio_local_data/

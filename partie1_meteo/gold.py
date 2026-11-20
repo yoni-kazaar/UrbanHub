@@ -1,23 +1,21 @@
-"""Étape 4 – Tables Gold : Silver → Gold.
+"""Étape 4 : tables Gold (Silver -> Gold).
 
 Lit toute la Silver météo en une passe (en parallèle) et produit :
 
-| Table (bucket gold)                          | Contenu                                         |
-| -------------------------------------------- | ----------------------------------------------- |
-| meteo/meteo_ville_heure.parquet  (CONTRAT)   | 1 ligne par ville et par heure, format du contrat |
-| meteo/meteo_ville_heure_detail.parquet       | idem + humidité, point de rosée, rafales, min/max |
-| meteo/meteo_ville_jour.parquet               | 1 ligne par ville et par jour (heure de Paris)  |
-| meteo/meteo_france_jour.parquet              | moyenne nationale par jour (toutes les stations) |
-| meteo/meteo_stations.parquet                 | les stations, pour la carte                     |
+- meteo_ville_heure.parquet : table du contrat, 1 ligne par ville et par heure
+- meteo_ville_heure_detail.parquet : idem + humidité, point de rosée, rafales, min/max
+- meteo_ville_jour.parquet : 1 ligne par ville et par jour (heure de Paris)
+- meteo_france_jour.parquet : moyenne nationale par jour (toutes les stations)
+- meteo_stations.parquet : les stations, pour la carte
 
 Règles (CONTRAT.md) :
 - `heure` = timestamp arrondi à l'heure, datetime UTC ;
-- valeur d'une ville = MOYENNE des stations de la ville (y compris min, max et
+- valeur d'une ville = moyenne des stations de la ville (y compris min, max et
   rafales : une station de sommet ou de cap venté ne décide pas pour la ville) ;
-- direction du vent = moyenne VECTORIELLE (la moyenne de 350° et 10° vaut 0°, pas 180°) ;
+- direction du vent = moyenne vectorielle (la moyenne de 350° et 10° vaut 0°, pas 180°) ;
 - valeur absente = vide, jamais 0.
 
-La table du contrat est publiée en DERNIER avec common.lake.publier_gold, qui
+La table du contrat est publiée en dernier avec common.lake.publier_gold, qui
 vérifie le format puis dépose gold/meteo/_SUCCESS : quand _SUCCESS existe,
 toutes les tables météo sont prêtes.
 
@@ -49,11 +47,9 @@ MOYENNES = ["temperature_c", "temperature_min_c", "temperature_max_c", "dew_poin
             "precipitation_mm", "wind_speed_ms", "wind_gust_ms", "visibility_m", "pressure_hpa"]
 
 
-# ============================================================================
-# Agrégats partiels : calculés fichier par fichier, puis fusionnés.
+# --- Agrégats partiels : calculés fichier par fichier, puis fusionnés. ---
 # (Une ville est répartie sur plusieurs départements, et un jour en heure de
-#  Paris peut être à cheval sur deux fichiers mensuels en UTC.)
-# ============================================================================
+# Paris peut être à cheval sur deux fichiers mensuels en UTC.)
 
 def partiel_ville_heure(df: pd.DataFrame) -> pd.DataFrame:
     d = df[df["ville"].notna()].copy()
@@ -87,9 +83,7 @@ def traiter_fichier(s3, cle: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return partiel_ville_heure(df), partiel_station_jour(df)
 
 
-# ============================================================================
-# Fusion des agrégats partiels
-# ============================================================================
+# --- Fusion des agrégats partiels ---
 
 def moyenne(somme: pd.Series, effectif: pd.Series) -> pd.Series:
     """Somme / effectif, vide si aucune mesure (jamais 0 par défaut)."""
@@ -160,14 +154,12 @@ def france_jour(partiels: pd.DataFrame) -> pd.DataFrame:
     return f.sort_values("jour").reset_index(drop=True), par_station
 
 
-# ============================================================================
-# Programme principal
-# ============================================================================
+# --- Programme principal ---
 
 def main() -> None:
     s3 = client_minio()
     cles = [c for c in lister_cles(s3, config.BUCKET_SILVER, f"{config.SOURCE}/year=") if c.endswith(".parquet")]
-    print(f"Lecture de {len(cles)} fichiers Silver…")
+    print(f"Lecture de {len(cles)} fichiers Silver...")
 
     t0 = time.time()
     p_ville, p_station = [], []
@@ -188,7 +180,7 @@ def main() -> None:
     stations = lire_parquet(s3, config.BUCKET_SILVER, config.CLE_STATIONS)
     stations = stations.merge(temp_station, on="station_id", how="inner")
 
-    # Tables complémentaires d'abord…
+    # Tables complémentaires d'abord...
     sorties = {
         "meteo_ville_heure_detail.parquet": detail,
         "meteo_ville_jour.parquet": jour,
@@ -199,10 +191,10 @@ def main() -> None:
         ecrire_parquet(s3, table, config.BUCKET_GOLD, f"{config.SOURCE}/{nom}")
         print(f"  gold/{config.SOURCE}/{nom} : {len(table):,} lignes".replace(",", " "))
 
-    # … puis la table du contrat, validée, avec _SUCCESS.
+    # ... puis la table du contrat, validée, avec _SUCCESS.
     contrat = detail[colonnes_contrat("meteo")].copy()
     publier_gold(contrat, "meteo")
-    print(f"  gold/meteo/meteo_ville_heure.parquet (CONTRAT) : {len(contrat):,} lignes, "
+    print(f"  gold/meteo/meteo_ville_heure.parquet (contrat) : {len(contrat):,} lignes, "
           f"du {contrat['heure'].min():%d/%m/%Y} au {contrat['heure'].max():%d/%m/%Y %H h} UTC".replace(",", " "))
     print("  gold/meteo/_SUCCESS déposé")
 

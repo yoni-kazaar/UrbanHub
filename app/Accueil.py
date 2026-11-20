@@ -6,7 +6,7 @@ from donnees import charger
 from common.villes import VILLES
 
 st.set_page_config(page_title="UrbanHub", page_icon="🏙️", layout="wide")
-st.title("UrbanHub – Observatoire urbain")
+st.title("UrbanHub - Observatoire urbain")
 st.caption("Météo, vélos en libre-service et qualité de l'air dans 8 grandes villes françaises.")
 
 meteo, velos, pollution = charger("meteo"), charger("velos"), charger("pollution")

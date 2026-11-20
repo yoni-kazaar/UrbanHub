@@ -1,4 +1,4 @@
-"""Étape 2 – Liste des stations météo françaises.
+"""Étape 2 : liste des stations météo françaises.
 
 Météo-France ne publie pas de liste de stations séparée : chaque ligne des
 fichiers horaires porte le numéro, le nom et les coordonnées de sa station.
@@ -82,7 +82,7 @@ def resumer_fichier(s3, cle: str) -> pd.DataFrame:
 
 def construire_stations(s3) -> pd.DataFrame:
     cles = list(fichiers_les_plus_recents(s3).values())
-    print(f"Lecture de {len(cles)} fichiers départementaux dans Bronze…")
+    print(f"Lecture de {len(cles)} fichiers départementaux dans Bronze...")
     with ThreadPoolExecutor(max_workers=4) as pool:
         morceaux = list(pool.map(lambda cle: resumer_fichier(s3, cle), cles))
 
@@ -99,12 +99,12 @@ def construire_stations(s3) -> pd.DataFrame:
         **{nom: (nom, "sum") for nom in VARIABLES},
     ).reset_index().rename(columns={"NUM_POSTE": "station_id"})
 
-    # Dates Météo-France (AAAAMMJJHH, en UTC) → vraies dates UTC.
+    # Dates Météo-France (AAAAMMJJHH, en UTC) -> vraies dates UTC.
     for col in ("debut", "fin"):
         stations[col] = pd.to_datetime(stations[col], format="%Y%m%d%H", utc=True)
     stations["departement"] = stations["station_id"].str[:2]
 
-    # Une variable est « mesurée » si la station la fournit au moins 1 heure sur 2.
+    # Une variable est 'mesurée' si la station la fournit au moins 1 heure sur 2.
     for nom in VARIABLES:
         stations[nom] = stations[nom] >= stations["nb_heures"] * 0.5
 
@@ -139,7 +139,7 @@ def main() -> None:
     for ville in VILLES:
         s = dans_villes[dans_villes["ville"] == ville]
         if s.empty:
-            print(f"  {ville:<11} ⚠ aucune station à moins de 30 km")
+            print(f"  {ville:<11} aucune station à moins de 30 km")
             continue
         couverture = "".join(
             lettre if s[nom].any() else "-"

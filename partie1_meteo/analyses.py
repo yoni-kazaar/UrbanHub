@@ -1,15 +1,13 @@
-"""Étape 5 – Les 4 questions métier et la détection d'anomalies (IA).
+"""Étape 5 : les 4 questions métier et la détection d'anomalies (IA).
 
 Lit les tables Gold météo, calcule les réponses et les enregistre dans
 gold/meteo/analyses/ (lues ensuite par la page Streamlit) :
 
-| Question                               | Tables produites                                   |
-| -------------------------------------- | -------------------------------------------------- |
-| Q1. Périodes météorologiques anormales | anomalies_jour, periodes_anormales                 |
-| Q2. Météo et visibilité                | visibilite_correlations, visibilite_classes, brouillard_mois_heure |
-| Q3. Évolution saisonnière              | saisons_mois, tendance_mois                        |
-| Q4. Jours extrêmes                     | jours_extremes                                     |
-| Chiffres clés (pour le rapport)        | resultats.json                                     |
+- Q1 périodes anormales : anomalies_jour, periodes_anormales
+- Q2 visibilité : visibilite_correlations, visibilite_classes, brouillard_mois_heure
+- Q3 saisons : saisons_mois, tendance_mois
+- Q4 jours extrêmes : jours_extremes
+- chiffres clés pour le rapport : resultats.json
 
 Lancement, depuis la racine du dépôt (après gold.py) :
     python -m partie1_meteo.analyses
@@ -34,7 +32,7 @@ DOSSIER = f"{config.SOURCE}/analyses"
 # Q1 : seuils
 FENETRE_NORMALE_JOURS = 7   # normale d'un jour = moyenne des jours ±7 autour, toutes années confondues
 SEUIL_Z = 2.0               # écart à la normale, en nombre d'écarts-types
-DUREE_MIN_JOURS = 3         # une « période » anormale dure au moins 3 jours de suite
+DUREE_MIN_JOURS = 3         # une 'période' anormale dure au moins 3 jours de suite
 PART_ANOMALIES_IA = 0.01    # Isolation Forest : 1 % des jours les plus atypiques
 
 # Q4 : seuils absolus (complétés par des seuils relatifs à chaque ville)
@@ -47,9 +45,7 @@ SEUILS_EXTREMES = {
 }
 
 
-# ============================================================================
-# Q1 – Périodes météorologiques anormales
-# ============================================================================
+# --- Q1 : Périodes météorologiques anormales ---
 
 def normale_saisonniere(jours: pd.DataFrame, colonne: str, groupe: str) -> pd.DataFrame:
     """Ajoute la normale (moyenne et écart-type) du jour de l'année, lissée sur ±7 jours."""
@@ -94,8 +90,8 @@ def periodes(anomalies: pd.DataFrame, groupe: str) -> pd.DataFrame:
 
 def isolation_forest(jours: pd.DataFrame) -> pd.DataFrame:
     """IA : repère les jours atypiques sur l'ensemble des variables, ville par ville.
-    La température est prise en ÉCART à la normale, sinon tous les jours
-    d'hiver et d'été seraient jugés « anormaux »."""
+    La température est prise en écart à la normale, sinon tous les jours
+    d'hiver et d'été seraient jugés 'anormaux'."""
     variables = ["ecart_c", "amplitude_c", "precipitation_mm", "rafale_max_ms",
                  "pressure_min_hpa", "visibility_min_m", "humidity_moy_pct"]
     sorties = []
@@ -103,8 +99,8 @@ def isolation_forest(jours: pd.DataFrame) -> pd.DataFrame:
         g = g.copy()
         X = g[variables].fillna(g[variables].median())
         modele = IsolationForest(contamination=PART_ANOMALIES_IA, n_estimators=300, random_state=42)
-        modele.fit(StandardScaler().fit_transform(X))
-        Xs = StandardScaler().fit(X).transform(X)
+        Xs = StandardScaler().fit_transform(X)
+        modele.fit(Xs)
         g["score_ia"] = -modele.score_samples(Xs)          # plus c'est haut, plus le jour est atypique
         g["anomalie_ia"] = modele.predict(Xs) == -1
         # Variable qui s'écarte le plus de la médiane : l'explication du jour atypique.
@@ -148,16 +144,14 @@ def q1(jours: pd.DataFrame, france: pd.DataFrame) -> tuple[dict, dict]:
     return {"anomalies_jour": anomalies, "periodes_anormales": periodes_toutes}, chiffres
 
 
-# ============================================================================
-# Q2 – Conditions météo et visibilité
-# ============================================================================
+# --- Q2 : Conditions météo et visibilité ---
 
 def q2(detail: pd.DataFrame) -> tuple[dict, dict]:
     d = detail.copy()
     d["ecart_rosee_c"] = d["temperature_c"] - d["dew_point_c"]  # proche de 0 = air saturé = brouillard
     variables = {
         "humidity_pct": "Humidité (%)",
-        "ecart_rosee_c": "Écart température – point de rosée (°C)",
+        "ecart_rosee_c": "Écart température - point de rosée (°C)",
         "precipitation_mm": "Pluie (mm/h)",
         "wind_speed_ms": "Vent (m/s)",
         "temperature_c": "Température (°C)",
@@ -174,9 +168,9 @@ def q2(detail: pd.DataFrame) -> tuple[dict, dict]:
 
     # Visibilité médiane selon des classes d'humidité et de pluie.
     d["classe_humidite"] = pd.cut(d["humidity_pct"], [0, 60, 80, 90, 95, 100.1],
-                                  labels=["< 60 %", "60–80 %", "80–90 %", "90–95 %", "> 95 %"], right=False)
+                                  labels=["< 60 %", "60-80 %", "80-90 %", "90-95 %", "> 95 %"], right=False)
     d["classe_pluie"] = pd.cut(d["precipitation_mm"], [-0.1, 0.05, 1, 4, 1000],
-                               labels=["sèche", "faible (< 1 mm)", "modérée (1–4 mm)", "forte (> 4 mm)"])
+                               labels=["sèche", "faible (< 1 mm)", "modérée (1-4 mm)", "forte (> 4 mm)"])
     classes = pd.concat([
         d.groupby("classe_humidite", observed=True)["visibility_m"].agg(["median", "size"])
          .reset_index().rename(columns={"classe_humidite": "classe"}).assign(critere="humidité"),
@@ -208,9 +202,7 @@ def q2(detail: pd.DataFrame) -> tuple[dict, dict]:
             "brouillard_mois_heure": brouillard}, chiffres
 
 
-# ============================================================================
-# Q3 – Évolution saisonnière de la température
-# ============================================================================
+# --- Q3 : Évolution saisonnière de la température ---
 
 def q3(jours: pd.DataFrame, france: pd.DataFrame) -> tuple[dict, dict]:
     v = jours[["ville", "jour", "temperature_moy_c"]].rename(columns={"ville": "zone"})
@@ -235,7 +227,7 @@ def q3(jours: pd.DataFrame, france: pd.DataFrame) -> tuple[dict, dict]:
     resume = {}
     for zone in profil.index.get_level_values(0).unique():
         p = profil[zone]
-        # Pas de « tendance climatique » chiffrée : 5 ans sont bien trop courts pour cela.
+        # Pas de 'tendance climatique' chiffrée : 5 ans sont bien trop courts pour cela.
         resume[zone] = {
             "mois_le_plus_chaud": int(p.idxmax()), "temperature_mois_chaud_c": round(p.max(), 1),
             "mois_le_plus_froid": int(p.idxmin()), "temperature_mois_froid_c": round(p.min(), 1),
@@ -247,9 +239,7 @@ def q3(jours: pd.DataFrame, france: pd.DataFrame) -> tuple[dict, dict]:
     return {"saisons_mois": mensuel, "tendance_mois": tendance}, chiffres
 
 
-# ============================================================================
-# Q4 – Jours aux conditions extrêmes
-# ============================================================================
+# --- Q4 : Jours aux conditions extrêmes ---
 
 def q4(jours: pd.DataFrame) -> tuple[dict, dict]:
     d = jours.copy()
@@ -287,9 +277,7 @@ def q4(jours: pd.DataFrame) -> tuple[dict, dict]:
     return {"jours_extremes": extremes}, chiffres
 
 
-# ============================================================================
-# Programme principal
-# ============================================================================
+# --- Programme principal ---
 
 def main() -> None:
     s3 = client_minio()
@@ -303,7 +291,7 @@ def main() -> None:
                                 ("q2_visibilite", q2, (detail,)),
                                 ("q3_saisons", q3, (jours, france)),
                                 ("q4_jours_extremes", q4, (jours,))]:
-        print(f"Calcul de {nom}…")
+        print(f"Calcul de {nom}...")
         t, chiffres = fonction(*args)
         tables |= t
         resultats[nom] = chiffres

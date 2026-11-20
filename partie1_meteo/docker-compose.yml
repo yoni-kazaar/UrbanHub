@@ -1,6 +1,6 @@
 # Conteneur Python de la partie météo.
 #
-# MinIO n'est PAS ici : c'est celui de infra/ (Yoni), à démarrer d'abord :
+# MinIO n'est pas ici : c'est celui de infra/ (Yoni), à démarrer d'abord :
 #   docker compose -f infra/docker-compose.yml up -d minio
 #
 # Lancer un script (depuis la racine du dépôt) :
@@ -24,7 +24,7 @@ services:
       - ..:/app
 
   # Application Streamlit de l'équipe, lancée dans Docker :
-  #   docker compose -f partie1_meteo/docker-compose.yml up -d app   →  http://localhost:8501
+  #   docker compose -f partie1_meteo/docker-compose.yml up -d app   ->  http://localhost:8501
   app:
     build:
       context: ..

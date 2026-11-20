@@ -72,10 +72,10 @@ def test_pluie_nulle_gardee_a_zero():
 
 def test_hors_periode_doublons_et_lignes_vides():
     df, compteurs = nettoyer_lignes(
-        ligne(AAAAMMJJHH="2021123123", T=5.0),   # avant 2022 → supprimée
+        ligne(AAAAMMJJHH="2021123123", T=5.0),   # avant 2022 -> supprimée
         ligne(T=20.0),
-        ligne(T=20.5),                           # même station, même heure → doublon
-        ligne(AAAAMMJJHH="2024071516"),          # aucune mesure → supprimée
+        ligne(T=20.5),                           # même station, même heure -> doublon
+        ligne(AAAAMMJJHH="2024071516"),          # aucune mesure -> supprimée
     )
     assert len(df) == 1
     assert df.loc[0, "temperature_c"] == 20.5    # la dernière valeur est gardée
