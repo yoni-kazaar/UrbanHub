@@ -29,6 +29,7 @@ jusqu'au jour même : choix validé par le professeur.
 | `tests/test_nettoyage.py` | Tests des règles de nettoyage |
 | `gold.py` | Étape 4 : tables Gold (table du contrat + tables par jour, France, stations) |
 | `analyses.py` | Étape 5 : les 4 questions métier + Isolation Forest -> `gold/meteo/analyses/` |
+| `publier_vps.py` | Copie de `gold/meteo/` du MinIO local vers le MinIO du VPS |
 | [`../app/pages/1_Meteo.py`](../app/pages/1_Meteo.py) | Étape 6 : page Streamlit Météo |
 | [`RAPPORT.md`](RAPPORT.md) | Étape 7 : section du rapport |
 | `Dockerfile`, `Dockerfile.app`, `docker-compose.yml` | Conteneurs Python (scripts) et Streamlit (application) |
@@ -77,6 +78,10 @@ docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m part
 # 5. Questions métier et IA
 docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.analyses
 
+# 5 bis. Publication de gold/meteo/ sur le VPS (variables VPS_MINIO_* du .env ;
+#        --lister pour comparer les deux côtés sans rien copier)
+docker compose -f partie1_meteo/docker-compose.yml run --rm meteo python -m partie1_meteo.publier_vps
+
 # 6. Application Streamlit -> http://localhost:8501 (page Météo dans le menu)
 docker compose -f partie1_meteo/docker-compose.yml --profile app up -d --build app
 ```
@@ -92,7 +97,7 @@ Seuls les fichiers 2025-2026 sont retéléchargés, et tout le reste est recalcu
 | `meteo_ville_heure_detail.parquet` | Idem + min/max, point de rosée, humidité, rafales, nombre de stations |
 | `meteo_ville_jour.parquet` | 1 ligne par ville et par jour (heure de Paris) |
 | `meteo_france_jour.parquet` | Moyenne nationale par jour, toutes stations |
-| `meteo_stations.parquet` | Les 1 995 stations, pour la carte |
+| `meteo_stations.parquet` | Les 1 996 stations, pour la carte |
 | `analyses/*.parquet`, `analyses/resultats.json` | Résultats des 4 questions (étape 5) |
 
 Une ville = **moyenne de ses stations** (y compris min, max et rafales), direction du vent
@@ -122,10 +127,10 @@ Relancer le téléchargement est sans risque :
 - les fichiers 2025-2026 sont retéléchargés une fois par jour (nouveau dossier daté) ;
 - une relance le même jour ne reprend que les fichiers en erreur.
 
-Pour viser le **VPS** : mettre l'URL HTTPS dans `.env`, puis supprimer la ligne
-`MINIO_ENDPOINT` du fichier `docker-compose.yml` de ce dossier.
+Le pipeline tourne sur le MinIO local ; seul le Gold est ensuite copié sur le **VPS**
+avec `publier_vps.py` (`_SUCCESS` copié en dernier, tailles vérifiées à la fin).
 
-## Résultats obtenus (19/11/2026)
+## Résultats obtenus (20/11/2026)
 
 **Étape 1 : téléchargement**
 - 95 départements de métropole, 190 fichiers, **3,3 Go compressés** dans Bronze.
@@ -133,7 +138,7 @@ Pour viser le **VPS** : mettre l'URL HTTPS dans `.env`, puis supprimer la ligne
   Météo-France, repris en 0,7 min par une relance.
 
 **Étape 2 : stations**
-- **2 098 stations** actives depuis 2022, dernière mesure le 19/11/2026 à 05 h UTC.
+- **2 099 stations** actives depuis 2022, dernière mesure le 20/11/2026 à 05 h UTC.
 - 81 stations rattachées aux 8 villes, avec les 5 variables dans chaque ville :
 
 | Ville | Stations | Station la plus proche du centre |
@@ -151,5 +156,5 @@ Une station ne mesure pas forcément toutes les variables : la visibilité et la
 pression ne sont relevées que dans les grandes stations. La table `stations.parquet`
 indique pour chacune ce qu'elle mesure (`mesure_temperature`, `mesure_vent`...).
 
-**Étapes 3 à 5** : 77,5 millions de lignes dans Silver, table du contrat de 342 377 lignes
+**Étapes 3 à 5** : 77,5 millions de lignes dans Silver, table du contrat de 342 574 lignes
 (100 % des heures couvertes dans chaque ville). Résultats des questions métier : voir [RAPPORT.md](RAPPORT.md).
