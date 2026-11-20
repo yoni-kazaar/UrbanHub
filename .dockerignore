@@ -3,6 +3,5 @@
 **/.env
 **/.env.*
 **/__pycache__
-app
 infra
 docs
