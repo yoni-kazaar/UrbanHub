@@ -1,6 +1,6 @@
 # Partie 1 : analyse météorologique urbaine (flux batch)
 
-*Section du rapport UrbanHub rédigée par la personne A. Chiffres calculés le 19/11/2026 sur la période du 01/01/2022 au 19/11/2026.*
+*Section du rapport UrbanHub rédigée par la personne A. Chiffres calculés le 20/11/2026 sur la période du 01/01/2022 au 20/11/2026.*
 
 ## 1. Source de données
 
@@ -9,7 +9,7 @@ Le sujet indique le jeu **NOAA Global Hourly** (ISD). Lors de la collecte, nous 
 Avec l'accord du professeur, la Partie 1 utilise donc les **[données climatologiques de base horaires de Météo-France](https://www.data.gouv.fr/fr/datasets/donnees-climatologiques-de-base-horaires/)** (Licence Ouverte) :
 
 - un fichier CSV compressé par département et par période (2020-2024 et 2025-2026) ;
-- mis à jour chaque jour : la dernière mesure utilisée date du 19/11/2026 à 05 h UTC ;
+- mis à jour chaque jour : la dernière mesure utilisée date du 20/11/2026 à 05 h UTC ;
 - les 8 variables demandées sont présentes, déjà dans les bonnes unités, avec un code qualité par mesure.
 
 | Variable du sujet | Colonne Météo-France | Unité |
@@ -46,9 +46,9 @@ app/pages/1_Meteo.py (Streamlit)
 | Étape | Résultat | Durée |
 | --- | --- | --- |
 | Téléchargement | 95 départements, 190 fichiers, 3,3 Go | 19 min (8 en parallèle) |
-| Stations | 2 098 stations actives depuis 2022, dont 81 dans les 8 villes | 2 min |
-| Nettoyage | 77,5 millions de lignes, 1 995 stations, 5 605 fichiers Parquet | 8,6 min |
-| Gold | 342 377 lignes ville × heure, 100 % des heures couvertes pour chaque ville | 6 min |
+| Stations | 2 099 stations actives depuis 2022, dont 81 dans les 8 villes | 2 min |
+| Nettoyage | 77,5 millions de lignes, 1 996 stations, 5 605 fichiers Parquet | 8,1 min |
+| Gold | 342 574 lignes ville × heure, 100 % des heures couvertes pour chaque ville | 5 min |
 
 Chaque ville est la **moyenne de ses stations à moins de 30 km** de son centre (règle du contrat) : de 3 stations à Lille à 24 à Paris. La direction du vent est moyennée **vectoriellement** (la moyenne de 350° et 10° vaut 0°, pas 180°).
 
@@ -56,14 +56,14 @@ Chaque ville est la **moyenne de ses stations à moins de 30 km** de son centre 
 
 | Règle | Lignes ou valeurs concernées |
 | --- | ---: |
-| Lignes lues | 106 331 357 |
+| Lignes lues | 106 375 776 |
 | Hors période (avant 2022) | 28 740 069 |
-| Lignes sans aucune mesure | 119 829 |
+| Lignes sans aucune mesure | 119 862 |
 | Doublons (même station, même heure) | 0 |
-| **Lignes gardées** | **77 471 459** |
-| Valeurs au code qualité « douteuse » (2), vidées | 78 |
+| **Lignes gardées** | **77 515 845** |
+| Valeurs au code qualité « douteuse » (2), vidées | 52 |
 | Valeurs physiquement impossibles, vidées | 3 |
-| Directions de vent par vent calme, vidées | 1 424 558 |
+| Directions de vent par vent calme, vidées | 1 424 679 |
 
 Les données Météo-France sont déjà contrôlées avant publication : moins d'une valeur sur un million est rejetée. La correction la plus fréquente concerne le **vent calme** : une direction de 0° par vent nul aurait été comptée comme un vent du nord. Les valeurs absentes restent vides, jamais remplacées par 0. Huit tests automatiques vérifient ces règles (`tests/test_nettoyage.py`).
 
@@ -155,7 +155,7 @@ La page **Météo** de l'application Streamlit (`app/pages/1_Meteo.py`) présent
 - **Périodes anormales :** écart à la normale jour par jour, périodes surlignées, jours repérés par l'IA ;
 - **Visibilité :** corrélations, visibilité par classe d'humidité et de pluie, carte du brouillard mois × heure ;
 - **Jours extrêmes :** décompte par ville, calendrier, top 10 ;
-- **Stations :** carte des 1 995 stations.
+- **Stations :** carte des 1 996 stations.
 
 Elle se filtre par ville et par période, et lit uniquement les tables Gold.
 
