@@ -4,6 +4,7 @@ Variables lues dans .env : MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY.
 Avec URBANHUB_FAKE=1, lire_gold lit les fausses tables locales (data/fake_gold/) au lieu de MinIO.
 """
 import io
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,9 @@ from common.schemas import chemin_gold, valider
 
 load_dotenv()
 FAKE_DIR = Path(__file__).resolve().parents[1] / "data" / "fake_gold"
+# Résultats de la Partie 4, dans le bucket gold (seul dossier où le compte croise peut écrire).
+SCORE = "croise/score_velo.parquet"
+METRIQUES = "croise/modele.json"
 
 
 def fs():
@@ -67,3 +71,15 @@ def lire_gold(source):
     if not gold_pret(source):
         return None
     return lire_parquet("gold", chemin_gold(source))
+
+
+def lire_croise():
+    """Résultats du modèle de la Partie 4 : (scores, métriques), ou (None, None) s'il n'a pas encore tourné."""
+    if os.environ.get("URBANHUB_FAKE") == "1":
+        if not (FAKE_DIR / SCORE).exists():
+            return None, None
+        return pd.read_parquet(FAKE_DIR / SCORE), json.loads((FAKE_DIR / METRIQUES).read_text("utf-8"))
+    if not fs().exists(f"gold/{SCORE}"):
+        return None, None
+    with fs().open(f"gold/{METRIQUES}", "rb") as f:
+        return lire_parquet("gold", SCORE), json.loads(f.read())

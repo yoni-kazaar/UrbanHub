@@ -269,18 +269,18 @@ Les analyses par station et par zone se font sur Silver, car Gold est agrégé p
 
 ### 3. Analyse
 
-- [ ] Joindre les 3 tables Gold sur `ville` + `heure` (période commune), puis calculer les corrélations.
-- [ ] Répondre aux 4 questions croisées :
+- [x] Joindre les 3 tables Gold sur `ville` + `heure` (période commune), puis calculer les corrélations.
+- [x] Répondre aux 4 questions croisées :
   1. Relation entre météo et pollution
   2. Influence de la météo sur l'usage des vélos
   3. Conditions favorables à la mobilité douce
   4. Périodes où mobilité, pollution et météo interagissent fortement
-- [ ] **IA :** construire un modèle qui prédit l'usage des vélos à partir de la météo (validation sur la période la plus récente, pas aléatoire), et un score « conditions favorables au vélo ».
+- [x] **IA :** construire un modèle qui prédit l'usage des vélos à partir de la météo (validation sur la période la plus récente, pas aléatoire), et un score « conditions favorables au vélo ».
 
 ### 4. Livrables
 
-- [ ] Page d'accueil `app/Accueil.py` (carte des 8 villes et indicateurs urbains) et page `app/pages/4_Croisee.py`
-- [ ] Remplacer les fausses tables Gold par les vraies.
+- [x] Page d'accueil `app/Accueil.py` (carte des 8 villes et indicateurs urbains) et page `app/pages/4_Croisee.py`
+- [x] Remplacer les fausses tables Gold par les vraies.
 - [ ] Partie du rapport
 - [ ] Vidéo de démo
 
